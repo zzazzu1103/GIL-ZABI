@@ -1,7 +1,8 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+KST = timezone(timedelta(hours=9))
 import json, sys, os
 from utils.helpers import (
     load_rooms, load_timetable, get_current_period,
@@ -154,7 +155,7 @@ def show():
 
     rooms_df    = load_rooms()
     timetable_df = load_timetable()
-    now          = datetime.now()
+    now          = datetime.now(KST)
     cur_day      = get_current_day(now)
     cur_period   = get_current_period(now)
     nxt_period   = get_next_period(now)

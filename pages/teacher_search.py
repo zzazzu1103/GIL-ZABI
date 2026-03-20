@@ -1,5 +1,6 @@
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+KST = timezone(timedelta(hours=9))
 from utils.helpers import (
     load_timetable, load_teachers, get_current_period,
     get_next_period, get_current_day, PERIODS, get_teacher_location
@@ -15,7 +16,7 @@ def show():
 
     timetable_df = load_timetable()
     teachers_df  = load_teachers()
-    now          = datetime.now()
+    now          = datetime.now(KST)
     cur_day      = get_current_day(now)
     cur_period   = get_current_period(now)
     nxt_period   = get_next_period(now)

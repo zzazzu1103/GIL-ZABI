@@ -1,6 +1,8 @@
 import pandas as pd
 import streamlit as st
-from datetime import datetime, time
+from datetime import datetime, time, timezone, timedelta
+
+KST = timezone(timedelta(hours=9))
 import os
 
 # ── 교시 시간 정의 ─────────────────────────────────────────────
@@ -49,7 +51,7 @@ def load_rooms():
 # ── 현재 교시 계산 ─────────────────────────────────────────────
 def get_current_period(now: datetime | None = None) -> int | None:
     """현재 시각이 몇 교시인지 반환. 쉬는 시간이면 None."""
-    t = (now or datetime.now()).time()
+    t = (now or datetime.now(KST)).time()
     for period, (start, end) in PERIODS.items():
         if start <= t <= end:
             return period
@@ -57,7 +59,7 @@ def get_current_period(now: datetime | None = None) -> int | None:
 
 def get_next_period(now: datetime | None = None) -> int | None:
     """다음 교시 번호 반환. 마지막 교시 이후면 None."""
-    t = (now or datetime.now()).time()
+    t = (now or datetime.now(KST)).time()
     current = get_current_period(now)
     if current:
         nxt = current + 1
@@ -69,12 +71,12 @@ def get_next_period(now: datetime | None = None) -> int | None:
 
 def get_current_day(now: datetime | None = None) -> str | None:
     """오늘 요일(한글) 반환. 주말이면 None."""
-    wd = (now or datetime.now()).weekday()
+    wd = (now or datetime.now(KST)).weekday()
     return DAY_MAP.get(wd) if wd < 5 else None
 
 def period_status(period: int, now: datetime | None = None) -> str:
     """교시별 상태: 'current' | 'next' | 'done' | 'upcoming'"""
-    t = (now or datetime.now()).time()
+    t = (now or datetime.now(KST)).time()
     start, end = PERIODS[period]
     current = get_current_period(now)
     nxt = get_next_period(now)

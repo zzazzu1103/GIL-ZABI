@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+KST = timezone(timedelta(hours=9))
 from utils.helpers import (
     load_timetable, get_current_period, get_next_period,
     get_current_day, PERIODS, period_status,
@@ -16,7 +17,7 @@ def show():
     """, unsafe_allow_html=True)
 
     df = load_timetable()
-    now = datetime.now()
+    now = datetime.now(KST)
     cur_day    = get_current_day(now)
     cur_period = get_current_period(now)
     nxt_period = get_next_period(now)
