@@ -1,0 +1,78 @@
+name: 🧪 코드 검사 (CI)
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 🐍 Python 3.11 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: 📦 패키지 설치
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyflakes
+
+      - name: 🔍 문법 검사 (pyflakes)
+        run: |
+          pyflakes app.py pages/ utils/
+
+      - name: ✅ import 경로 검사
+        run: |
+          python3 -c "
+          import ast, os, sys
+          errors = []
+          for root, dirs, files in os.walk('.'):
+              dirs[:] = [d for d in dirs if d not in ['__pycache__','.git','venv','.venv']]
+              for f in files:
+                  if not f.endswith('.py'): continue
+                  path = os.path.join(root, f)
+                  with open(path) as fh:
+                      src = fh.read()
+                  try:
+                      ast.parse(src)
+                  except SyntaxError as e:
+                      errors.append(f'{path}: {e}')
+          if errors:
+              for e in errors: print('ERROR:', e)
+              sys.exit(1)
+          print('모든 Python 파일 문법 검사 통과 ✅')
+          "
+
+      - name: 📊 데이터 파일 검증
+        run: |
+          python3 -c "
+          import pandas as pd, sys
+          required_cols = {
+              'data/timetable.csv': ['요일','교시','반','과목','교사명','교실위치','층'],
+              'data/teachers.csv':  ['교사명','담당과목','교무실','교무실위치','층'],
+              'data/rooms.csv':     ['교실코드','교실명','층'],
+          }
+          ok = True
+          for path, cols in required_cols.items():
+              try:
+                  df = pd.read_csv(path)
+                  missing = [c for c in cols if c not in df.columns]
+                  if missing:
+                      print(f'❌ {path}: 컬럼 누락 {missing}')
+                      ok = False
+                  else:
+                      print(f'✅ {path}: {len(df)}행, 필수 컬럼 모두 존재')
+              except Exception as e:
+                  print(f'❌ {path}: {e}')
+                  ok = False
+          sys.exit(0 if ok else 1)
+          "
