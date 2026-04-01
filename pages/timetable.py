@@ -55,8 +55,8 @@ def show():
         # 스타일
         def style_cell(val):
             if not isinstance(val, str):
-                return "background:#1A2030; color:#555;"
-            return "background:#161B22; color:#E6EDF3; white-space:pre-line; font-size:0.85rem;"
+                return "background:#F5F0E8; color:#555;"
+            return "background:#fff; color:#3D3929; white-space:pre-line; font-size:0.85rem;"
 
         st.dataframe(
             pivot.fillna("—").style.applymap(style_cell),
@@ -109,24 +109,24 @@ def show():
                 badge_cls, badge_label = "badge-done", "⚫ 완료"
 
         # 층별 색상
-        floor_colors = {1:"#58A6FF", 2:"#BC8CFF", 3:"#FF7B72", 4:"#FFA657", 5:"#3FB950"}
-        floor_color = floor_colors.get(int(row["층"]), "#8B949E")
+        floor_colors = {1:"#2E6B7D", 2:"#6B2E7D", 3:"#FF7B72", 4:"#C2852A", 5:"#059669"}
+        floor_color = floor_colors.get(int(row["층"]), "#9E9070")
 
         st.markdown(f"""
         <div class="card {card_cls}">
             <div style="display:flex; align-items:center; gap:16px;">
                 <!-- 교시 번호 -->
                 <div style="min-width:56px; text-align:center; 
-                            background:#0D1117; border-radius:10px; padding:10px 0;">
-                    <div style="font-size:1.4rem; font-weight:900; color:#4ECDC4;">{period}</div>
-                    <div style="font-size:0.65rem; color:#8B949E;">교시</div>
+                            background:#FAF7F2; border-radius:10px; padding:10px 0;">
+                    <div style="font-size:1.4rem; font-weight:900; color:#7D6B2E;">{period}</div>
+                    <div style="font-size:0.65rem; color:#9E9070;">교시</div>
                 </div>
                 <!-- 내용 -->
                 <div style="flex:1;">
-                    <div style="font-size:0.78rem; color:#8B949E; margin-bottom:4px;">{time_str}</div>
-                    <div style="font-size:1.15rem; font-weight:700; color:#E6EDF3;">
+                    <div style="font-size:0.78rem; color:#9E9070; margin-bottom:4px;">{time_str}</div>
+                    <div style="font-size:1.15rem; font-weight:700; color:#3D3929;">
                         {row['과목']}
-                        <span style="font-size:0.85rem; font-weight:400; color:#8B949E; margin-left:6px;">
+                        <span style="font-size:0.85rem; font-weight:400; color:#9E9070; margin-left:6px;">
                             {row['교사명']} 선생님
                         </span>
                     </div>
@@ -136,7 +136,7 @@ def show():
                     <div style="font-size:1rem; font-weight:700; color:{floor_color};">
                         📍 {row['교실위치']}
                     </div>
-                    <div style="font-size:0.78rem; color:#8B949E; margin:2px 0 6px;">{row['층']}층</div>
+                    <div style="font-size:0.78rem; color:#9E9070; margin:2px 0 6px;">{row['층']}층</div>
                     <span class="status-badge {badge_cls}">{badge_label}</span>
                 </div>
             </div>

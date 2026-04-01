@@ -45,10 +45,10 @@ def show():
             st.markdown("""
             <div class="card" style="text-align:center; padding:40px;">
                 <div style="font-size:3rem; margin-bottom:12px;">🔍</div>
-                <div style="font-size:1.1rem; font-weight:600; color:#8B949E;">
+                <div style="font-size:1.1rem; font-weight:600; color:#9E9070;">
                     선생님 이름을 입력하세요
                 </div>
-                <div style="font-size:0.85rem; color:#4A5568; margin-top:6px;">
+                <div style="font-size:0.85rem; color:#D4C9A8; margin-top:6px;">
                     성함 일부만 입력해도 검색됩니다
                 </div>
             </div>
@@ -62,7 +62,7 @@ def show():
                     st.markdown(f"""
                     <div class="card" style="padding:14px;">
                         <div style="font-size:1rem; font-weight:700;">{t['교사명']} 선생님</div>
-                        <div style="color:#8B949E; font-size:0.85rem; margin-top:4px;">
+                        <div style="color:#9E9070; font-size:0.85rem; margin-top:4px;">
                             {t['담당과목']} · {t['교무실']}
                         </div>
                     </div>
@@ -85,11 +85,11 @@ def show():
     with c1:
         st.markdown(f"""
         <div class="card">
-            <div style="color:#8B949E; font-size:0.8rem; margin-bottom:8px;">기본 정보</div>
+            <div style="color:#9E9070; font-size:0.8rem; margin-bottom:8px;">기본 정보</div>
             <div style="font-size:1rem; font-weight:600;">담당 과목</div>
-            <div style="font-size:1.4rem; font-weight:900; color:#4ECDC4; margin:4px 0 12px;">{ti['담당과목']}</div>
+            <div style="font-size:1.4rem; font-weight:900; color:#7D6B2E; margin:4px 0 12px;">{ti['담당과목']}</div>
             <div style="font-size:1rem; font-weight:600;">교무실</div>
-            <div style="font-size:1rem; color:#E6EDF3; margin-top:4px;">
+            <div style="font-size:1rem; color:#3D3929; margin-top:4px;">
                 📍 {ti['교무실위치']} ({ti['층']}층)
             </div>
         </div>
@@ -102,13 +102,13 @@ def show():
             s, e = PERIODS.get(cur_period, (None, None))
             time_str = f"{s.strftime('%H:%M')}~{e.strftime('%H:%M')}" if s else ""
 
-            status_color = "#FF6B35" if loc["상태"] == "수업중" else "#3FB950"
+            status_color = "#D97706" if loc["상태"] == "수업중" else "#059669"
             status_icon  = "🔴" if loc["상태"] == "수업중" else "🟢"
             badge_cls    = "badge-current" if loc["상태"] == "수업중" else "badge-next"
 
             st.markdown(f"""
             <div class="card card-current">
-                <div style="color:#8B949E; font-size:0.8rem; margin-bottom:8px;">
+                <div style="color:#9E9070; font-size:0.8rem; margin-bottom:8px;">
                     지금 ({cur_period}교시 · {time_str})
                 </div>
                 <span class="status-badge {badge_cls}">
@@ -117,14 +117,14 @@ def show():
                 <div style="font-size:1.4rem; font-weight:900; color:{status_color}; margin:10px 0 4px;">
                     📍 {loc['교실']}
                 </div>
-                <div style="color:#8B949E; font-size:0.85rem;">{loc['층']}층</div>
-                {"<div style='color:#E6EDF3; margin-top:6px;'>"+loc['과목']+" · "+loc['반']+"</div>" if loc['상태']=='수업중' else ""}
+                <div style="color:#9E9070; font-size:0.85rem;">{loc['층']}층</div>
+                {"<div style='color:#3D3929; margin-top:6px;'>"+loc['과목']+" · "+loc['반']+"</div>" if loc['상태']=='수업중' else ""}
             </div>
             """, unsafe_allow_html=True)
         else:
             st.markdown("""
             <div class="card">
-                <div style="color:#8B949E; font-size:0.85rem;">
+                <div style="color:#9E9070; font-size:0.85rem;">
                     현재 수업 시간이 아닙니다.<br>교무실에서 찾으세요.
                 </div>
             </div>
@@ -161,16 +161,16 @@ def show():
                 <div class="card {card_cls}">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
                         <div>
-                            <div style="color:#8B949E;font-size:0.78rem;">{period}교시 · {time_str}</div>
+                            <div style="color:#9E9070;font-size:0.78rem;">{period}교시 · {time_str}</div>
                             <div style="font-size:1.05rem;font-weight:700;margin-top:4px;">
                                 {row['과목']} — {row['반']}
                             </div>
                         </div>
                         <div style="text-align:right;">
-                            <div style="font-size:1rem;font-weight:700;color:#4ECDC4;">
+                            <div style="font-size:1rem;font-weight:700;color:#7D6B2E;">
                                 📍 {row['교실위치']}
                             </div>
-                            <div style="color:#8B949E;font-size:0.78rem;">{row['층']}층</div>
+                            <div style="color:#9E9070;font-size:0.78rem;">{row['층']}층</div>
                             {badge_html}
                         </div>
                     </div>

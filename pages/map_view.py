@@ -56,19 +56,19 @@ FLOOR_LAYOUTS = {
 }
 
 TYPE_COLORS = {
-    "classroom": {"fill":"#1A2535","stroke":"#4ECDC4","text":"#E6EDF3"},
-    "special":   {"fill":"#1A2030","stroke":"#FF6B35","text":"#E6EDF3"},
-    "lab":       {"fill":"#1A2530","stroke":"#BC8CFF","text":"#E6EDF3"},
-    "office":    {"fill":"#1A2020","stroke":"#3FB950","text":"#E6EDF3"},
-    "restroom":  {"fill":"#141920","stroke":"#58A6FF","text":"#8B949E"},
-    "stair":     {"fill":"#141920","stroke":"#8B949E","text":"#8B949E"},
-    "storage":   {"fill":"#141920","stroke":"#FFA657","text":"#8B949E"},
-    "entrance":  {"fill":"#1A2530","stroke":"#FFDDA6","text":"#E6EDF3"},
+    "classroom": {"fill":"#F5F0E8","stroke":"#7D6B2E","text":"#3D3929"},
+    "special":   {"fill":"#F5F0E8","stroke":"#D97706","text":"#3D3929"},
+    "lab":       {"fill":"#1A2530","stroke":"#6B2E7D","text":"#3D3929"},
+    "office":    {"fill":"#F5F0E8","stroke":"#059669","text":"#3D3929"},
+    "restroom":  {"fill":"#F5F0E8","stroke":"#2E6B7D","text":"#9E9070"},
+    "stair":     {"fill":"#F5F0E8","stroke":"#9E9070","text":"#9E9070"},
+    "storage":   {"fill":"#F5F0E8","stroke":"#C2852A","text":"#9E9070"},
+    "entrance":  {"fill":"#1A2530","stroke":"#FFDDA6","text":"#3D3929"},
 }
 
 HIGHLIGHT_COLORS = {
-    "current": "#FF6B35",
-    "next":    "#4ECDC4",
+    "current": "#D97706",
+    "next":    "#7D6B2E",
 }
 
 
@@ -78,7 +78,7 @@ def build_svg(floor: int, highlight_rooms: dict, room_info_map: dict) -> str:
     W, H = 720, 400
 
     parts = [f"""<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg"
-        style="width:100%;height:auto;background:#0D1117;border-radius:12px;border:1px solid #30363D;">
+        style="width:100%;height:auto;background:#FAF7F2;border-radius:12px;border:1px solid #E0D8CC;">
     <defs>
         <filter id="glow">
             <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
@@ -87,10 +87,10 @@ def build_svg(floor: int, highlight_rooms: dict, room_info_map: dict) -> str:
     </defs>
     <!-- 복도 -->
     <rect x="0" y="60" width="{W}" height="20" fill="#0F1923" opacity="0.8"/>
-    <text x="10" y="75" font-size="11" fill="#8B949E" font-family="sans-serif">{floor}층 복도</text>
+    <text x="10" y="75" font-size="11" fill="#9E9070" font-family="sans-serif">{floor}층 복도</text>
     <!-- 외벽 -->
     <rect x="5" y="5" width="{W-10}" height="{H-10}"
-          fill="none" stroke="#30363D" stroke-width="2" rx="8"/>
+          fill="none" stroke="#E0D8CC" stroke-width="2" rx="8"/>
     """]
 
     for rm in rooms:
@@ -139,7 +139,7 @@ def build_svg(floor: int, highlight_rooms: dict, room_info_map: dict) -> str:
     # 층 표시
     parts.append(f"""
     <text x="{W-20}" y="{H-10}" text-anchor="end"
-          font-size="11" fill="#8B949E" font-family="sans-serif">{floor}F</text>
+          font-size="11" fill="#9E9070" font-family="sans-serif">{floor}F</text>
     </svg>""")
 
     return "".join(parts)
@@ -196,12 +196,12 @@ def show():
     # ── 범례 ─────────────────────────────────────────────────────────────────
     cols = st.columns(6)
     legends = [
-        ("#4ECDC4","일반 교실"),
-        ("#FF6B35","특별실"),
-        ("#BC8CFF","과학실"),
-        ("#3FB950","교무실"),
-        ("#FF6B35","🔴 수업 중"),
-        ("#4ECDC4","🟢 다음 교시"),
+        ("#7D6B2E","일반 교실"),
+        ("#D97706","특별실"),
+        ("#6B2E7D","과학실"),
+        ("#059669","교무실"),
+        ("#D97706","🔴 수업 중"),
+        ("#7D6B2E","🟢 다음 교시"),
     ]
     for col, (color, label) in zip(cols, legends):
         with col:
@@ -209,7 +209,7 @@ def show():
                 f'<div style="display:flex;align-items:center;gap:6px;font-size:0.8rem;">'
                 f'<div style="width:12px;height:12px;border-radius:2px;'
                 f'background:{color};flex-shrink:0;"></div>'
-                f'<span style="color:#8B949E;">{label}</span></div>',
+                f'<span style="color:#9E9070;">{label}</span></div>',
                 unsafe_allow_html=True
             )
 
@@ -246,11 +246,11 @@ def show():
                         <div style="margin-top:8px;font-size:1.1rem;font-weight:700;">
                             {period}교시 · {subject}
                         </div>
-                        <div style="color:#8B949E;font-size:0.85rem;">{teacher} 선생님 · {time_str}</div>
+                        <div style="color:#9E9070;font-size:0.85rem;">{teacher} 선생님 · {time_str}</div>
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-size:1.4rem;font-weight:900;color:#4ECDC4;">📍 {room_id}</div>
-                        <div style="color:#8B949E;font-size:0.8rem;">{sel_floor}층</div>
+                        <div style="font-size:1.4rem;font-weight:900;color:#7D6B2E;">📍 {room_id}</div>
+                        <div style="color:#9E9070;font-size:0.8rem;">{sel_floor}층</div>
                     </div>
                 </div>
             </div>
@@ -265,15 +265,15 @@ def show():
         "storage":"창고/준비실","entrance":"현관",
     }
     type_colors = {
-        "classroom":"#4ECDC4","special":"#FF6B35","lab":"#BC8CFF",
-        "office":"#3FB950","restroom":"#58A6FF","stair":"#8B949E",
-        "storage":"#FFA657","entrance":"#FFDDA6",
+        "classroom":"#7D6B2E","special":"#D97706","lab":"#6B2E7D",
+        "office":"#059669","restroom":"#2E6B7D","stair":"#9E9070",
+        "storage":"#C2852A","entrance":"#FFDDA6",
     }
 
     cols = st.columns(3)
     for i, rm in enumerate(floor_rooms):
         rtype = rm.get("type","classroom")
-        color = type_colors.get(rtype,"#8B949E")
+        color = type_colors.get(rtype,"#9E9070")
         label = type_labels.get(rtype,"기타")
         with cols[i % 3]:
             st.markdown(f"""
@@ -283,6 +283,6 @@ def show():
                 <div style="font-size:1rem;font-weight:700;margin:4px 0 2px;">
                     {rm['name'].replace(chr(10),' ')}
                 </div>
-                <div style="font-size:0.78rem;color:#8B949E;">{rm['id']}</div>
+                <div style="font-size:0.78rem;color:#9E9070;">{rm['id']}</div>
             </div>
             """, unsafe_allow_html=True)

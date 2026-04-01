@@ -71,6 +71,40 @@ streamlit run app.py
 
 ---
 
+## 🔗 Google Sheets 연동 (선택)
+
+`utils/helpers.py`에서 `load_timetable()` 함수를 수정하면 CSV 대신 Google Sheets에서 실시간 데이터를 가져올 수 있습니다.
+
+```python
+# .streamlit/secrets.toml 에 추가 (git에 올리지 마세요!)
+[gcp_service_account]
+type = "service_account"
+project_id = "..."
+private_key = "..."
+# ... 나머지 서비스 계정 정보
+
+[sheets]
+timetable_id = "스프레드시트_ID"
+```
+
+```python
+# helpers.py - Google Sheets 연동 예시
+import gspread
+from google.oauth2.service_account import Credentials
+
+def load_timetable_from_sheets():
+    creds = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
+    )
+    gc = gspread.authorize(creds)
+    sh = gc.open_by_key(st.secrets["sheets"]["timetable_id"])
+    ws = sh.worksheet("시간표")
+    return pd.DataFrame(ws.get_all_records())
+```
+
+---
+
 ## 🌐 Streamlit Cloud 배포
 
 1. GitHub에 이 저장소를 push

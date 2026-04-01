@@ -11,153 +11,184 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── 전역 CSS ──────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
 
-/* 기본 */
 html, body, [class*="css"] {
     font-family: 'Noto Sans KR', sans-serif;
 }
 
-/* 배경 */
+/* ── 전체 배경 ── */
 .stApp {
-    background: #0D1117;
-    color: #E6EDF3;
+    background: #FAF7F2;
+    color: #3D3929;
 }
 
-/* 사이드바 */
+/* ── 사이드바 ── */
 section[data-testid="stSidebar"] {
-    background: #161B22;
-    border-right: 1px solid #30363D;
+    background: #F2EDE4;
+    border-right: 1px solid #E0D8CC;
 }
 section[data-testid="stSidebar"] * {
-    color: #E6EDF3 !important;
+    color: #3D3929 !important;
+}
+section[data-testid="stSidebar"] .stRadio label {
+    color: #3D3929 !important;
 }
 
-/* 헤더 */
+/* ── 헤더 ── */
 .main-header {
-    background: linear-gradient(135deg, #1F2937 0%, #111827 100%);
-    border: 1px solid #374151;
-    border-radius: 16px;
-    padding: 28px 36px;
+    background: #fff;
+    border: 1px solid #E0D8CC;
+    border-left: 4px solid #7D6B2E;
+    border-radius: 12px;
+    padding: 24px 32px;
     margin-bottom: 24px;
-    position: relative;
-    overflow: hidden;
-}
-.main-header::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -10%;
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(78,205,196,0.08) 0%, transparent 70%);
-    pointer-events: none;
 }
 .main-header h1 {
-    font-size: 2.2rem;
+    font-size: 2rem;
     font-weight: 900;
-    background: linear-gradient(90deg, #4ECDC4, #FF6B35);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: #3D3929;
     margin: 0 0 6px 0;
 }
+.main-header h1 span {
+    color: #7D6B2E;
+}
 .main-header p {
-    color: #8B949E;
-    font-size: 0.95rem;
+    color: #9E9070;
+    font-size: 0.9rem;
     margin: 0;
 }
 
-/* 상태 뱃지 */
+/* ── 상태 뱃지 ── */
 .status-badge {
     display: inline-block;
-    padding: 4px 12px;
+    padding: 3px 10px;
     border-radius: 20px;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 700;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.03em;
 }
-.badge-current  { background: rgba(255,107,53,0.15);  color: #FF6B35;  border: 1px solid #FF6B35; }
-.badge-next     { background: rgba(78,205,196,0.15);  color: #4ECDC4;  border: 1px solid #4ECDC4; }
-.badge-done     { background: rgba(149,165,166,0.10); color: #95A5A6;  border: 1px solid #95A5A6; }
-.badge-upcoming { background: rgba(44,62,80,0.30);    color: #BDC3C7;  border: 1px solid #4A5568; }
+.badge-current  { background: #FEF3C7; color: #92400E; border: 1px solid #D97706; }
+.badge-next     { background: #ECFDF5; color: #065F46; border: 1px solid #059669; }
+.badge-done     { background: #F5F0E8; color: #9E9070; border: 1px solid #D4C9A8; }
+.badge-upcoming { background: #F5F0E8; color: #9E9070; border: 1px solid #E0D8CC; }
 
-/* 카드 */
+/* ── 카드 ── */
 .card {
-    background: #161B22;
-    border: 1px solid #30363D;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 12px;
-    transition: border-color 0.2s;
+    background: #fff;
+    border: 1px solid #E0D8CC;
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 10px;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
-.card:hover { border-color: #4ECDC4; }
-.card-current { border-color: #FF6B35 !important; background: rgba(255,107,53,0.06); }
-.card-next    { border-color: #4ECDC4 !important; background: rgba(78,205,196,0.06); }
+.card:hover {
+    border-color: #B8A05A;
+    box-shadow: 0 2px 8px rgba(125,107,46,0.08);
+}
+.card-current {
+    border-color: #D97706 !important;
+    border-left: 3px solid #D97706 !important;
+    background: #FFFBF0;
+}
+.card-next {
+    border-color: #059669 !important;
+    border-left: 3px solid #059669 !important;
+    background: #F6FFFA;
+}
 
-/* 선택 박스 */
+/* ── 선택 박스 ── */
 div[data-baseweb="select"] > div {
-    background: #161B22 !important;
-    border-color: #30363D !important;
-    color: #E6EDF3 !important;
+    background: #fff !important;
+    border-color: #E0D8CC !important;
+    color: #3D3929 !important;
 }
 
-/* 버튼 */
+/* ── 버튼 ── */
 .stButton > button {
-    background: linear-gradient(135deg, #4ECDC4, #44B5AC) !important;
-    color: #0D1117 !important;
+    background: #7D6B2E !important;
+    color: #FAF7F2 !important;
     border: none !important;
     font-weight: 700 !important;
     border-radius: 8px !important;
     padding: 0.5rem 1.5rem !important;
 }
+.stButton > button:hover {
+    background: #6A5A26 !important;
+}
 
-/* 입력 필드 */
+/* ── 입력 필드 ── */
 .stTextInput > div > div > input {
-    background: #161B22 !important;
-    border-color: #30363D !important;
-    color: #E6EDF3 !important;
+    background: #fff !important;
+    border-color: #E0D8CC !important;
+    color: #3D3929 !important;
 }
 
-/* 구분선 */
-hr { border-color: #30363D; }
+/* ── 구분선 ── */
+hr { border-color: #E0D8CC; }
 
-/* metric */
+/* ── metric ── */
 [data-testid="metric-container"] {
-    background: #161B22;
-    border: 1px solid #30363D;
+    background: #fff;
+    border: 1px solid #E0D8CC;
     border-radius: 10px;
-    padding: 16px;
+    padding: 14px;
+}
+[data-testid="metric-container"] label {
+    color: #9E9070 !important;
+}
+[data-testid="metric-container"] [data-testid="stMetricValue"] {
+    color: #3D3929 !important;
+}
+[data-testid="metric-container"] [data-testid="stMetricDelta"] {
+    color: #7D6B2E !important;
 }
 
-/* info/warning box */
+/* ── info/warning ── */
 .stAlert { border-radius: 10px; }
 
-/* 탭 */
+/* ── 탭 ── */
 button[data-baseweb="tab"] {
-    color: #8B949E !important;
+    color: #9E9070 !important;
     font-weight: 600;
 }
 button[data-baseweb="tab"][aria-selected="true"] {
-    color: #4ECDC4 !important;
-    border-bottom-color: #4ECDC4 !important;
+    color: #7D6B2E !important;
+    border-bottom-color: #7D6B2E !important;
+}
+
+/* ── 체크박스 ── */
+.stCheckbox label { color: #3D3929 !important; }
+
+/* ── 섹션 타이틀 ── */
+h1, h2, h3, h4 { color: #3D3929 !important; }
+
+/* ── 데이터프레임 ── */
+.stDataFrame { border: 1px solid #E0D8CC; border-radius: 10px; overflow: hidden; }
+
+/* ── 다운로드 버튼 ── */
+.stDownloadButton > button {
+    background: #F5F0E8 !important;
+    color: #7D6B2E !important;
+    border: 1px solid #D4C9A8 !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ── 사이드바 네비게이션 ───────────────────────────────────────────────────────
+# ── 사이드바 ──────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""
-    <div style='text-align:center; padding: 16px 0 24px 0;'>
-        <div style='font-size:2.5rem;'>🗺️</div>
-        <div style='font-size:1.3rem; font-weight:900; 
-                    background:linear-gradient(90deg,#4ECDC4,#FF6B35);
-                    -webkit-background-clip:text; -webkit-text-fill-color:transparent;'>
+    <div style='text-align:center; padding: 20px 0 24px 0;'>
+        <div style='font-size:2.2rem;'>🗺️</div>
+        <div style='font-size:1.2rem; font-weight:900; color:#3D3929; margin-top:6px;'>
             길잡이
         </div>
-        <div style='font-size:0.7rem; color:#8B949E; letter-spacing:0.15em;'>GIL-ZABI v1.0</div>
+        <div style='font-size:0.65rem; color:#9E9070; letter-spacing:0.15em; margin-top:2px;'>GIL-ZABI v1.0</div>
+        <div style='width:36px; height:2px; background:#7D6B2E; margin:10px auto 0;'></div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -171,7 +202,7 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown(
-        "<div style='color:#8B949E; font-size:0.75rem; text-align:center;'>"
+        "<div style='color:#9E9070; font-size:0.72rem; text-align:center;'>"
         "ⓘ 데이터는 Google Sheets와 연동됩니다<br><br>"
         "팀 GIL-ZABI · 2025</div>",
         unsafe_allow_html=True,
