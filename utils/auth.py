@@ -15,7 +15,7 @@ secrets.toml 필요 항목:
 
   [roles]
   teachers = ["teacher1@school.kr", "teacher2@school.kr"]
-  admins   = ["admin@school.kr"]
+  admins   = ["2410520@jeohyeon.hs.kr"]
 """
 
 import streamlit as st
