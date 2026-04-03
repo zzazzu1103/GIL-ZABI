@@ -1,21 +1,5 @@
 """
 구글 OAuth 로그인 + 권한 관리 모듈
-────────────────────────────────────
-권한 등급:
-  guest   — 비로그인, 시간표/지도 조회만 가능
-  student — 구글 로그인, 자기 반 시간표만 조회
-  teacher — 교사 계정, 시간표 수정/추가 가능
-  admin   — 관리자, 모든 기능 접근
-
-secrets.toml 필요 항목:
-  [oauth]
-  client_id     = "....apps.googleusercontent.com"
-  client_secret = "GOCSPX-..."
-  redirect_uri  = "https://gil-zabi.streamlit.app/"
-
-  [roles]
-  teachers = ["teacher1@school.kr", "teacher2@school.kr"]
-  admins   = ["2410520@jeohyeon.hs.kr"]
 """
 
 import streamlit as st
@@ -29,7 +13,6 @@ GOOGLE_AUTH_URL  = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USER_URL  = "https://www.googleapis.com/oauth2/v3/userinfo"
 
-# (label, color) 튜플
 ROLE_LABELS = {
     "guest":   ("👤 비로그인",  "#9E9070"),
     "student": ("🎓 학생",      "#2E6B7D"),
@@ -52,12 +35,16 @@ ROLE_PAGES = {
 }
 
 
-# ── OAuth URL 생성 ─────────────────────────────────────────────
 def get_oauth_url() -> str:
     try:
         client_id    = st.secrets["oauth"]["client_id"]
         redirect_uri = st.secrets["oauth"]["redirect_uri"]
-    except Exception:
+    except Exception as e:
+        st.error(f"❌ secrets.toml 읽기 실패: {e}")
+        return ""
+
+    if not client_id or not redirect_uri:
+        st.error("❌ client_id 또는 redirect_uri가 비어 있습니다.")
         return ""
 
     params = {
@@ -68,10 +55,10 @@ def get_oauth_url() -> str:
         "access_type":   "offline",
         "prompt":        "select_account",
     }
-    return GOOGLE_AUTH_URL + "?" + urllib.parse.urlencode(params)
+    url = GOOGLE_AUTH_URL + "?" + urllib.parse.urlencode(params)
+    return url
 
 
-# ── 인가 코드 → 토큰 교환 ──────────────────────────────────────
 def exchange_code_for_token(code: str) -> dict | None:
     try:
         resp = requests.post(GOOGLE_TOKEN_URL, data={
@@ -86,7 +73,6 @@ def exchange_code_for_token(code: str) -> dict | None:
         return None
 
 
-# ── 토큰 → 사용자 정보 ─────────────────────────────────────────
 def get_user_info(access_token: str) -> dict | None:
     try:
         resp = requests.get(
@@ -99,7 +85,6 @@ def get_user_info(access_token: str) -> dict | None:
         return None
 
 
-# ── 이메일 → 권한 등급 결정 ────────────────────────────────────
 def resolve_role(email: str) -> str:
     try:
         admins   = st.secrets.get("roles", {}).get("admins",   [])
@@ -114,7 +99,6 @@ def resolve_role(email: str) -> str:
     return "student"
 
 
-# ── 로그인 처리 (URL 파라미터에서 code 감지) ───────────────────
 def handle_oauth_callback():
     params = st.query_params
     if "code" not in params:
@@ -127,7 +111,7 @@ def handle_oauth_callback():
     with st.spinner("구글 로그인 처리 중..."):
         token_data = exchange_code_for_token(code)
         if not token_data or "access_token" not in token_data:
-            st.error("로그인 실패: 토큰 발급 오류")
+            st.error(f"로그인 실패: 토큰 발급 오류 — {token_data}")
             return
 
         user_info = get_user_info(token_data["access_token"])
@@ -151,7 +135,6 @@ def handle_oauth_callback():
     st.rerun()
 
 
-# ── 로그아웃 ───────────────────────────────────────────────────
 def logout():
     for key in ["user", "_processed_code"]:
         st.session_state.pop(key, None)
@@ -159,12 +142,10 @@ def logout():
     st.rerun()
 
 
-# ── 현재 유저/권한 조회 ────────────────────────────────────────
 def get_current_user() -> dict | None:
     return st.session_state.get("user")
 
 def get_user() -> dict:
-    """get_current_user의 별칭. 비로그인 시 기본값 반환."""
     user = st.session_state.get("user")
     return user if user else {"name": "비로그인", "email": "", "role": "guest"}
 
@@ -178,14 +159,12 @@ def has_permission(required: str) -> bool:
     return hierarchy.index(current) >= hierarchy.index(required)
 
 def require_role(required: str) -> bool:
-    """권한 확인 후 없으면 경고 표시하고 False 반환."""
     if has_permission(required):
         return True
     show_permission_denied(required)
     return False
 
 
-# ── 사이드바 로그인 위젯 ───────────────────────────────────────
 def render_auth_sidebar():
     user = get_current_user()
     role = get_role()
@@ -229,6 +208,9 @@ def render_auth_sidebar():
         )
         oauth_url = get_oauth_url()
         if oauth_url:
+            # 디버깅: URL 표시
+            st.markdown("**생성된 OAuth URL:**")
+            st.code(oauth_url, language=None)
             st.markdown(
                 f'<a href="{oauth_url}" target="_self" style="display:block;text-align:center;'
                 f'background:#7D6B2E;color:#FAF7F2;padding:8px;border-radius:8px;'
@@ -237,10 +219,9 @@ def render_auth_sidebar():
                 unsafe_allow_html=True,
             )
         else:
-            st.warning("OAuth 설정이 필요합니다. (로그인 없이도 조회 가능)")
+            st.warning("OAuth 설정이 필요합니다.")
 
 
-# ── 권한 없음 안내 화면 ────────────────────────────────────────
 def show_permission_denied(required: str):
     labels = {"student": "학생", "teacher": "교사", "admin": "관리자"}
     st.markdown(
