@@ -208,16 +208,7 @@ def render_auth_sidebar():
         )
         oauth_url = get_oauth_url()
         if oauth_url:
-            # 디버깅: URL 표시
-            st.markdown("**생성된 OAuth URL:**")
-            st.code(oauth_url, language=None)
-            st.markdown(
-                f'<a href="{oauth_url}" target="_self" style="display:block;text-align:center;'
-                f'background:#7D6B2E;color:#FAF7F2;padding:8px;border-radius:8px;'
-                f'text-decoration:none;font-size:0.85rem;font-weight:700;">'
-                f'🔐 구글 계정으로 로그인</a>',
-                unsafe_allow_html=True,
-            )
+            st.link_button("🔐 구글 계정으로 로그인", oauth_url, use_container_width=True)
         else:
             st.warning("OAuth 설정이 필요합니다.")
 
