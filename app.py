@@ -13,7 +13,6 @@ from utils.auth import (
     get_user,
     ROLE_PAGES,
     ROLE_LABELS,
-    require_role,
 )
 
 st.set_page_config(
