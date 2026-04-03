@@ -161,3 +161,5 @@ elif page == "⚙️ 관리자":
     else:
         from utils.auth import show_permission_denied
         show_permission_denied("teacher")
+elif page == "👤 개인 설정":
+    from pages.my_settings import show; show()
