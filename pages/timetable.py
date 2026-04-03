@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timezone, timedelta
 KST = timezone(timedelta(hours=9))
+from utils.auth import get_role
 from utils.helpers import (
     load_timetable, get_current_period, get_next_period,
     get_current_day, PERIODS, period_status,
@@ -25,10 +26,20 @@ def show():
     # ── 필터 ─────────────────────────────────────────────────────────────────
     classes = sorted(df["반"].unique().tolist())
     days    = ["월", "화", "수", "목", "금"]
+    role     = get_role()
+    my_class = st.session_state.get("my_class", classes[0])
 
     col1, col2, col3 = st.columns([2, 2, 1])
     with col1:
-        sel_class = st.selectbox("🏫 반 선택", classes)
+        if role == "student" and "my_class" in st.session_state:
+            st.markdown(
+                f'<div class="card" style="padding:10px 14px;">'
+                f'<span style="color:#9E9070;font-size:0.78rem;">내 반</span><br>'
+                f'<span style="font-weight:700;color:#3D3929;">{my_class}</span>'
+                f'</div>', unsafe_allow_html=True)
+            sel_class = my_class
+        else:
+            sel_class = st.selectbox("🏫 반 선택", classes)
     with col2:
         default_day = cur_day if cur_day in days else "월"
         sel_day = st.selectbox("📆 요일 선택", days, index=days.index(default_day))

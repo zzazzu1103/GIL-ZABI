@@ -11,6 +11,7 @@ password = "your_secure_password"
 import streamlit as st
 import pandas as pd
 from utils.helpers import load_timetable, load_teachers, DATA_DIR
+from utils.auth import get_role, has_permission
 
 # Google Sheets 연동 여부 확인
 USE_SHEETS = False

@@ -1,5 +1,6 @@
 import streamlit as st
 from datetime import datetime, timezone, timedelta
+from utils.auth import get_current_user, get_role
 from utils.helpers import (
     get_current_period, get_next_period, get_current_day,
     PERIODS, load_timetable, STATUS_LABELS
@@ -50,9 +51,19 @@ def show():
 
     df = load_timetable()
     classes = sorted(df["반"].unique().tolist())
+    role = get_role()
+    my_class = st.session_state.get("my_class", classes[0])
     col_a, col_b = st.columns([2, 1])
     with col_a:
-        sel_class = st.selectbox("내 반 선택", classes, key="home_class")
+        if role == "student" and "my_class" in st.session_state:
+            st.markdown(
+                f'<div class="card" style="padding:10px 14px;">'
+                f'<span style="color:#9E9070;font-size:0.78rem;">내 반</span><br>'
+                f'<span style="font-weight:700;color:#3D3929;">{my_class}</span>'
+                f'</div>', unsafe_allow_html=True)
+            sel_class = my_class
+        else:
+            sel_class = st.selectbox("내 반 선택", classes, key="home_class")
     with col_b:
         days = ["월", "화", "수", "목", "금"]
         default_day = cur_day if cur_day in days else "월"
