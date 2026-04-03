@@ -30,6 +30,12 @@ GOOGLE_AUTH_URL  = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USER_URL  = "https://www.googleapis.com/oauth2/v3/userinfo"
 
+ROLE_PAGES = {
+    "guest":   ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기"],
+    "student": ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기", "🏫 내 반 설정"],
+    "teacher": ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기", "🏫 내 반 설정", "⚙️ 관리자"],
+}
+
 ROLE_LABELS = {
     "guest":   ("👤 비로그인",  "#9E9070"),
     "student": ("🎓 학생",      "#2E6B7D"),
