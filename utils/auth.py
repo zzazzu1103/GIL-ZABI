@@ -29,9 +29,9 @@ ROLE_COLORS = {
 
 ROLE_PAGES = {
     "guest":   ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기"],
-    "student": ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기", "🏫 내 반 설정"],
-    "teacher": ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기", "⚙️ 관리자"],
-    "admin":   ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기", "🏫 내 반 설정", "⚙️ 관리자"],
+    "student": ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기", "🏫 내 반 설정", "👤 개인 설정"],
+    "teacher": ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기", "👤 개인 설정", "⚙️ 관리자"],
+    "admin":   ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기", "🏫 내 반 설정", "👤 개인 설정", "⚙️ 관리자"],
 }
 
 
@@ -130,6 +130,12 @@ def handle_oauth_callback():
             "login_at": datetime.now(KST).strftime("%H:%M"),
         }
         st.session_state["_processed_code"] = code
+        # 저장된 개인 설정 자동 적용
+        try:
+            from utils.user_settings import apply_user_settings_to_session
+            apply_user_settings_to_session(email)
+        except Exception:
+            pass
 
     st.query_params.clear()
     st.rerun()
