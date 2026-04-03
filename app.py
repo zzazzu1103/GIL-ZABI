@@ -3,11 +3,10 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import streamlit as st
-from utils.auth import render_auth_sidebar, has_permission, show_permission_denied
-from utils.auth import render_auth_sidebar, has_permission, show_permission_denied
 from utils.auth import (
-    handle_oauth_callback, render_sidebar_auth,
-    get_role, get_user, ROLE_PAGES, ROLE_LABELS
+    handle_oauth_callback, render_auth_sidebar,
+    get_role, get_user, has_permission,
+    ROLE_PAGES, ROLE_LABELS, ROLE_COLORS
 )
 
 st.set_page_config(
@@ -64,7 +63,6 @@ section[data-testid="stSidebar"] * { color: #3D3929 !important; }
 .card-current { border-color:#D97706 !important; border-left:3px solid #D97706 !important; background:#FFFBF0; }
 .card-next    { border-color:#059669 !important; border-left:3px solid #059669 !important; background:#F6FFFA; }
 
-/* 권한 배너 */
 .role-banner {
     background: #fff; border: 1px solid #E0D8CC; border-radius: 8px;
     padding: 8px 14px; margin-bottom: 16px;
@@ -116,7 +114,7 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     # 로그인 UI
-    render_sidebar_auth()
+    render_auth_sidebar()
 
     # 권한에 따라 메뉴 표시
     role  = get_role()
@@ -124,8 +122,6 @@ with st.sidebar:
 
     page = st.radio("메뉴", pages, label_visibility="collapsed")
 
-    render_auth_sidebar()
-    render_auth_sidebar()
     st.markdown(
         "<div style='color:#9E9070;font-size:0.72rem;text-align:center;'>"
         "팀 GIL-ZABI · 2025</div>",
@@ -133,16 +129,17 @@ with st.sidebar:
     )
 
 # ── 권한 배너 (로그인 시) ──────────────────────────────────────
+role = get_role()
 if role != "guest":
     user = get_user()
-    from utils.auth import ROLE_COLORS
-    color = ROLE_COLORS[role]
+    color = ROLE_COLORS.get(role, "#9E9070")
+    label_text = ROLE_LABELS.get(role, ("", ""))[0]
+    icon = "🎓" if role == "student" else "👩‍🏫" if role == "teacher" else "⚙️"
     st.markdown(
         f'<div class="role-banner">'
-        f'<span style="font-size:1rem;">'
-        f'{"🎓" if role=="student" else "👩‍🏫" if role=="teacher" else "⚙️"}</span>'
+        f'<span style="font-size:1rem;">{icon}</span>'
         f'<span style="color:#3D3929;"><b>{user["name"]}</b>님 환영해요</span>'
-        f'<span style="margin-left:auto;color:{color};font-weight:700;">{ROLE_LABELS[role]}</span>'
+        f'<span style="margin-left:auto;color:{color};font-weight:700;">{label_text}</span>'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -157,9 +154,10 @@ elif page == "🗺️ 학교 지도":
 elif page == "🔍 선생님 찾기":
     from pages.teacher_search import show; show()
 elif page == "🏫 내 반 설정":
-    from pages.my_class import show
-    show()
+    from pages.my_class import show; show()
 elif page == "⚙️ 관리자":
-    from utils.auth import require_role
-    if require_role("teacher"):
+    if has_permission("teacher"):
         from pages.admin import show; show()
+    else:
+        from utils.auth import show_permission_denied
+        show_permission_denied("teacher")
