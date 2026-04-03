@@ -21,7 +21,6 @@ secrets.toml 필요 항목:
 import streamlit as st
 import requests
 import urllib.parse
-import json
 from datetime import datetime, timezone, timedelta
 
 KST = timezone(timedelta(hours=9))
@@ -30,12 +29,28 @@ GOOGLE_AUTH_URL  = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USER_URL  = "https://www.googleapis.com/oauth2/v3/userinfo"
 
+# (label, color) 튜플
 ROLE_LABELS = {
     "guest":   ("👤 비로그인",  "#9E9070"),
     "student": ("🎓 학생",      "#2E6B7D"),
     "teacher": ("👩‍🏫 교사",     "#5C7A3E"),
     "admin":   ("⚙️ 관리자",    "#7D6B2E"),
 }
+
+ROLE_COLORS = {
+    "guest":   "#9E9070",
+    "student": "#2E6B7D",
+    "teacher": "#5C7A3E",
+    "admin":   "#7D6B2E",
+}
+
+ROLE_PAGES = {
+    "guest":   ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기"],
+    "student": ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기", "🏫 내 반 설정"],
+    "teacher": ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기", "⚙️ 관리자"],
+    "admin":   ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기", "🏫 내 반 설정", "⚙️ 관리자"],
+}
+
 
 # ── OAuth URL 생성 ─────────────────────────────────────────────
 def get_oauth_url() -> str:
@@ -106,7 +121,6 @@ def handle_oauth_callback():
         return
 
     code = params["code"]
-    # 이미 처리된 코드면 스킵
     if st.session_state.get("_processed_code") == code:
         return
 
@@ -125,15 +139,14 @@ def handle_oauth_callback():
         role  = resolve_role(email)
 
         st.session_state["user"] = {
-            "email":   email,
-            "name":    user_info.get("name", email),
-            "picture": user_info.get("picture", ""),
-            "role":    role,
+            "email":    email,
+            "name":     user_info.get("name", email),
+            "picture":  user_info.get("picture", ""),
+            "role":     role,
             "login_at": datetime.now(KST).strftime("%H:%M"),
         }
         st.session_state["_processed_code"] = code
 
-    # URL에서 code 제거 후 새로고침
     st.query_params.clear()
     st.rerun()
 
@@ -150,6 +163,11 @@ def logout():
 def get_current_user() -> dict | None:
     return st.session_state.get("user")
 
+def get_user() -> dict:
+    """get_current_user의 별칭. 비로그인 시 기본값 반환."""
+    user = st.session_state.get("user")
+    return user if user else {"name": "비로그인", "email": "", "role": "guest"}
+
 def get_role() -> str:
     user = get_current_user()
     return user["role"] if user else "guest"
@@ -159,19 +177,23 @@ def has_permission(required: str) -> bool:
     current   = get_role()
     return hierarchy.index(current) >= hierarchy.index(required)
 
+def require_role(required: str) -> bool:
+    """권한 확인 후 없으면 경고 표시하고 False 반환."""
+    if has_permission(required):
+        return True
+    show_permission_denied(required)
+    return False
+
 
 # ── 사이드바 로그인 위젯 ───────────────────────────────────────
 def render_auth_sidebar():
-    handle_oauth_callback()
-
     user = get_current_user()
     role = get_role()
     label, color = ROLE_LABELS.get(role, ROLE_LABELS["guest"])
 
-    st.sidebar.markdown("---")
+    st.markdown("---")
 
     if user:
-        # 로그인 상태
         pic = user.get("picture", "")
         pic_html = (
             f'<img src="{pic}" style="width:36px;height:36px;border-radius:50%;'
@@ -183,7 +205,7 @@ def render_auth_sidebar():
             f'vertical-align:middle;margin-right:8px;">'
             f'{user["name"][0]}</div>'
         )
-        st.sidebar.markdown(
+        st.markdown(
             f'<div style="display:flex;align-items:center;margin-bottom:6px;">'
             f'{pic_html}'
             f'<div><div style="font-size:0.85rem;font-weight:700;color:#3D3929;">{user["name"]}</div>'
@@ -194,12 +216,11 @@ def render_auth_sidebar():
             f'font-size:0.72rem;font-weight:700;">{label}</span>',
             unsafe_allow_html=True,
         )
-        st.sidebar.markdown("<div style='margin-top:8px;'></div>", unsafe_allow_html=True)
-        if st.sidebar.button("로그아웃", key="logout_btn", use_container_width=True):
+        st.markdown("<div style='margin-top:8px;'></div>", unsafe_allow_html=True)
+        if st.button("로그아웃", key="logout_btn", use_container_width=True):
             logout()
     else:
-        # 비로그인 상태
-        st.sidebar.markdown(
+        st.markdown(
             f'<div style="text-align:center;margin-bottom:8px;">'
             f'<span style="display:inline-block;background:#F5F0E8;color:{color};'
             f'border:1px solid #D4C9A8;border-radius:20px;padding:2px 10px;'
@@ -208,7 +229,7 @@ def render_auth_sidebar():
         )
         oauth_url = get_oauth_url()
         if oauth_url:
-            st.sidebar.markdown(
+            st.markdown(
                 f'<a href="{oauth_url}" target="_self" style="display:block;text-align:center;'
                 f'background:#7D6B2E;color:#FAF7F2;padding:8px;border-radius:8px;'
                 f'text-decoration:none;font-size:0.85rem;font-weight:700;">'
@@ -216,12 +237,12 @@ def render_auth_sidebar():
                 unsafe_allow_html=True,
             )
         else:
-            st.sidebar.warning("OAuth 설정이 필요합니다.")
+            st.warning("OAuth 설정이 필요합니다. (로그인 없이도 조회 가능)")
 
 
 # ── 권한 없음 안내 화면 ────────────────────────────────────────
 def show_permission_denied(required: str):
-    labels = {"student":"학생", "teacher":"교사", "admin":"관리자"}
+    labels = {"student": "학생", "teacher": "교사", "admin": "관리자"}
     st.markdown(
         f'<div class="card" style="text-align:center;padding:40px;">'
         f'<div style="font-size:2.5rem;margin-bottom:12px;">🔒</div>'
