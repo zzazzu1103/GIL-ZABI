@@ -4,11 +4,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import streamlit as st
 from utils.auth import render_auth_sidebar, has_permission, show_permission_denied
-from utils.auth import render_auth_sidebar, has_permission, show_permission_denied
-from utils.auth import (
-    handle_oauth_callback, render_sidebar_auth,
-    get_role, get_user, ROLE_PAGES, ROLE_LABELS
-)
+from utils.auth import handle_oauth_callback, render_sidebar_auth,get_role, get_user, ROLE_PAGES, ROLE_LABELS
 
 st.set_page_config(
     page_title="길잡이 GIL-ZABI",
