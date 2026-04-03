@@ -13,7 +13,6 @@ from utils.auth import (
     get_user,
     ROLE_PAGES,
     ROLE_LABELS,
-    ROLE_COLORS,
     require_role,
 )
 
