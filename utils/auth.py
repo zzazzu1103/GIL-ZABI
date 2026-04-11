@@ -1,6 +1,6 @@
 """
 구글 OAuth 로그인 + 권한 관리 모듈
-새로고침 후에도 로그인 상태 유지: 서버사이드 토큰 파일 방식
+새로고침 후에도 로그인 + 개인설정 상태 유지 (서버사이드 토큰 파일)
 """
 
 import streamlit as st
@@ -18,12 +18,11 @@ GOOGLE_AUTH_URL  = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USER_URL  = "https://www.googleapis.com/oauth2/v3/userinfo"
 
-# 토큰 저장 경로
 _TOKEN_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "data", "_sessions"
 )
-_TOKEN_TTL = 60 * 60 * 24 * 7  # 7일 (초)
+_TOKEN_TTL = 60 * 60 * 24 * 7  # 7일
 
 ROLE_LABELS = {
     "guest":   ("👤 비로그인",  "#9E9070"),
@@ -47,24 +46,19 @@ ROLE_PAGES = {
 }
 
 
-# ── 서버사이드 세션 토큰 관리 ─────────────────────────────────────────────
+# ── 서버사이드 세션 토큰 ─────────────────────────────────────────────────────
 
 def _ensure_token_dir():
     os.makedirs(_TOKEN_DIR, exist_ok=True)
 
 def _token_path(token: str) -> str:
-    # 안전한 파일명만 허용
     safe = "".join(c for c in token if c.isalnum() or c in "-_")
     return os.path.join(_TOKEN_DIR, f"{safe}.json")
 
 def _save_session_token(token: str, user_data: dict):
     _ensure_token_dir()
-    payload = {
-        "user": user_data,
-        "expires": _time.time() + _TOKEN_TTL,
-    }
     with open(_token_path(token), "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False)
+        json.dump({"user": user_data, "expires": _time.time() + _TOKEN_TTL}, f, ensure_ascii=False)
 
 def _load_session_token(token: str) -> dict | None:
     path = _token_path(token)
@@ -89,7 +83,6 @@ def _delete_session_token(token: str):
             pass
 
 def _cleanup_expired_tokens():
-    """만료된 토큰 파일 정리 (가끔 호출)"""
     try:
         for fname in os.listdir(_TOKEN_DIR):
             if not fname.endswith(".json"):
@@ -106,6 +99,27 @@ def _cleanup_expired_tokens():
         pass
 
 
+def _restore_user_settings(email: str):
+    """
+    저장된 개인 설정을 세션에 복원.
+    my_class, tangu_map, my_subjects, my_classes 등을 모두 복원.
+    """
+    try:
+        from utils.user_settings import load_user_settings
+        settings = load_user_settings(email)
+
+        if settings.get("my_class"):
+            st.session_state["my_class"] = settings["my_class"]
+        if settings.get("tangu_map"):
+            st.session_state["tangu_map"] = settings["tangu_map"]
+        if settings.get("my_subjects"):
+            st.session_state["my_subjects"] = settings["my_subjects"]
+        if settings.get("my_classes"):
+            st.session_state["my_classes"] = settings["my_classes"]
+    except Exception:
+        pass
+
+
 # ── OAuth 헬퍼 ────────────────────────────────────────────────────────────
 
 def get_oauth_url() -> str:
@@ -115,11 +129,9 @@ def get_oauth_url() -> str:
     except Exception as e:
         st.error(f"❌ secrets.toml 읽기 실패: {e}")
         return ""
-
     if not client_id or not redirect_uri:
         st.error("❌ client_id 또는 redirect_uri가 비어 있습니다.")
         return ""
-
     params = {
         "client_id":     client_id,
         "redirect_uri":  redirect_uri,
@@ -163,11 +175,8 @@ def resolve_role(email: str) -> str:
         teachers = list(st.secrets.get("roles", {}).get("teacher_emails", []))
     except Exception:
         admins, teachers = [], []
-
-    if email in admins:
-        return "admin"
-    if email in teachers:
-        return "teacher"
+    if email in admins:   return "admin"
+    if email in teachers: return "teacher"
     return "student"
 
 
@@ -175,36 +184,36 @@ def resolve_role(email: str) -> str:
 
 def handle_oauth_callback():
     """
-    1. URL에 `sid` 파라미터가 있으면 → 서버 토큰으로 세션 복원 (새로고침 후 유지)
-    2. URL에 `code` 파라미터가 있으면 → OAuth 콜백 처리 후 토큰 발급
+    매 렌더링마다 호출됨.
+    1) ?sid=... → 토큰으로 세션 복원 (새로고침 유지)
+    2) ?code=... → OAuth 콜백 처리
+    세션이 이미 복원돼 있으면 즉시 반환.
     """
+    # 이미 로그인 세션이 살아 있으면 개인 설정만 보완 후 종료
+    if "user" in st.session_state:
+        # my_class 등이 세션에 없으면 파일에서 보완
+        if "my_class" not in st.session_state:
+            user = st.session_state["user"]
+            _restore_user_settings(user.get("email", ""))
+        return
+
     params = st.query_params
 
-    # ── 케이스 1: 세션 복원 ──────────────────────────────────────────────
+    # ── 케이스 1: sid로 세션 복원 ────────────────────────────────────────
     sid = params.get("sid")
-    if sid and "user" not in st.session_state:
+    if sid:
         user_data = _load_session_token(sid)
         if user_data:
             st.session_state["user"] = user_data
             st.session_state["_sid"] = sid
-            # 저장된 개인 설정도 복원
-            try:
-                from utils.user_settings import apply_user_settings_to_session
-                apply_user_settings_to_session(user_data["email"])
-            except Exception:
-                pass
-            # sid는 URL에 유지 (새로고침 대비)
+            _restore_user_settings(user_data.get("email", ""))
             return
         else:
-            # 만료된 토큰 → URL 정리 후 로그인 페이지로
+            # 만료된 sid → 로그인 페이지로
             st.query_params.clear()
             st.rerun()
 
-    # ── 케이스 2: 이미 세션에 로그인되어 있고 sid도 있음 → 아무것도 안 함 ──
-    if "user" in st.session_state:
-        return
-
-    # ── 케이스 3: OAuth code 콜백 ────────────────────────────────────────
+    # ── 케이스 2: OAuth code 콜백 ────────────────────────────────────────
     if "code" not in params:
         return
 
@@ -234,37 +243,28 @@ def handle_oauth_callback():
             "login_at": datetime.now(KST).strftime("%H:%M"),
         }
 
-        # 서버사이드 토큰 발급
         sid = secrets.token_urlsafe(32)
         _save_session_token(sid, user_data)
-        _cleanup_expired_tokens()  # 가끔 정리
+        _cleanup_expired_tokens()
 
         st.session_state["user"] = user_data
         st.session_state["_sid"] = sid
         st.session_state["_processed_code"] = code
+        _restore_user_settings(email)
 
-        # 저장된 개인 설정 자동 적용
-        try:
-            from utils.user_settings import apply_user_settings_to_session
-            apply_user_settings_to_session(email)
-        except Exception:
-            pass
-
-    # URL을 sid 파라미터로 교체 (새로고침 후 복원용)
     st.query_params.clear()
     st.query_params["sid"] = sid
     st.rerun()
 
 
 def logout():
-    # 서버 토큰 삭제
     sid = st.session_state.get("_sid")
     if sid:
         _delete_session_token(sid)
-
-    for key in ["user", "_processed_code", "_sid"]:
+    for key in ["user", "_processed_code", "_sid",
+                "my_class", "tangu_map", "my_subjects", "my_classes",
+                "_set_grade", "_set_class"]:
         st.session_state.pop(key, None)
-
     st.query_params.clear()
     st.rerun()
 
@@ -284,8 +284,7 @@ def get_role() -> str:
 
 def has_permission(required: str) -> bool:
     hierarchy = ["guest", "student", "teacher", "admin"]
-    current   = get_role()
-    return hierarchy.index(current) >= hierarchy.index(required)
+    return hierarchy.index(get_role()) >= hierarchy.index(required)
 
 def require_role(required: str) -> bool:
     if has_permission(required):
