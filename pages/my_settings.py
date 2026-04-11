@@ -2,7 +2,7 @@
 pages/my_settings.py
 ─────────────────────
 로그인한 사용자의 개인 설정 페이지
-- 학생: 학년 버튼 → 반 버튼 분리 선택 + 탐구 과목 개인화
+- 학생: 학년/반 버튼 선택 (색상 구분) + 탐구 과목 개인화
 - 교사: 담당 과목/반 선택
 """
 
@@ -10,6 +10,35 @@ import streamlit as st
 from utils.helpers import load_timetable, load_teachers, sort_classes
 from utils.auth import get_current_user, get_role
 from utils.user_settings import load_user_settings, save_user_settings
+
+# 선택/비선택 버튼 스타일 주입 (Streamlit 버튼을 CSS로 가로채기)
+_BUTTON_CSS = """
+<style>
+/* 학년·반 선택 버튼 기본 (비선택) */
+div[data-testid="stHorizontalBlock"] button[kind="secondary"] {
+    background: #F2EDE4 !important;
+    color: #9E9070 !important;
+    border: 1.5px solid #E0D8CC !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+}
+div[data-testid="stHorizontalBlock"] button[kind="secondary"]:hover {
+    background: #E8E0D4 !important;
+    color: #3D3929 !important;
+    border-color: #B8A05A !important;
+}
+</style>
+"""
+
+
+def _selected_btn_html(label: str) -> str:
+    """선택된 버튼 — 골드 배경"""
+    return (
+        f'<div style="text-align:center;padding:6px 4px;'
+        f'background:#7D6B2E;color:#FAF7F2;border-radius:8px;'
+        f'font-weight:700;font-size:0.88rem;line-height:1.6;'
+        f'border:1.5px solid #7D6B2E;cursor:default;">{label}</div>'
+    )
 
 
 def _get_tangu_options(timetable_df, my_class, tangu_code):
@@ -32,6 +61,8 @@ def _get_tangu_options(timetable_df, my_class, tangu_code):
 def show():
     user = get_current_user()
     role = get_role()
+
+    st.markdown(_BUTTON_CSS, unsafe_allow_html=True)
 
     st.markdown("""
     <div class="main-header">
@@ -69,7 +100,7 @@ def show():
 
         current_class = saved.get("my_class", "")
 
-        # 전체 반을 숫자 정렬 후 학년별 그룹화
+        # 숫자 정렬된 전체 반 목록
         all_classes = sort_classes(df["반"].unique().tolist())
         grades: dict[int, list[str]] = {}
         for c in all_classes:
@@ -80,7 +111,7 @@ def show():
             grades.setdefault(g, []).append(c)
         grade_list = sorted(grades.keys())
 
-        # 현재 저장된 반에서 학년 추출 (초기값)
+        # 초기 학년 계산
         if current_class and "-" in current_class:
             try:
                 default_grade = int(current_class.split("-")[0])
@@ -89,11 +120,11 @@ def show():
         else:
             default_grade = grade_list[0]
 
-        # 세션에서 선택 중인 학년/반 읽기
+        # 세션 초기화
         if "_set_grade" not in st.session_state:
             st.session_state["_set_grade"] = default_grade
         if "_set_class" not in st.session_state:
-            st.session_state["_set_class"] = current_class
+            st.session_state["_set_class"] = current_class or (grades[default_grade][0] if grades else "")
 
         sel_grade = st.session_state["_set_grade"]
         sel_class = st.session_state["_set_class"]
@@ -103,29 +134,18 @@ def show():
         grade_cols = st.columns(len(grade_list))
         for i, g in enumerate(grade_list):
             with grade_cols[i]:
-                label = f"{g}학년"
-                is_sel = (sel_grade == g)
-                # 선택된 학년은 채워진 버튼처럼 보이게 마크다운 오버레이
-                if is_sel:
-                    st.markdown(
-                        f'<div style="text-align:center;padding:6px 0;'
-                        f'background:#7D6B2E;color:#FAF7F2;border-radius:8px;'
-                        f'font-weight:700;font-size:0.9rem;cursor:default;">{label}</div>',
-                        unsafe_allow_html=True
-                    )
+                if sel_grade == g:
+                    st.markdown(_selected_btn_html(f"{g}학년"), unsafe_allow_html=True)
                 else:
-                    if st.button(label, key=f"gbtn_{g}", use_container_width=True):
+                    if st.button(f"{g}학년", key=f"gbtn_{g}", use_container_width=True):
                         st.session_state["_set_grade"] = g
-                        # 학년이 바뀌면 반도 해당 학년 첫 번째 반으로 초기화
                         st.session_state["_set_class"] = grades[g][0]
                         st.rerun()
 
-        st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
 
         # ── 반 버튼 ──────────────────────────────────────────────────────
         class_list = grades.get(sel_grade, [])
-
-        # sel_class가 현재 학년에 없으면 첫 번째로 교정
         if sel_class not in class_list and class_list:
             sel_class = class_list[0]
             st.session_state["_set_class"] = sel_class
@@ -139,29 +159,27 @@ def show():
                 with cols[ci]:
                     short = cls.split("-")[1] if "-" in cls else cls
                     label = f"{short}반"
-                    is_sel = (sel_class == cls)
-                    if is_sel:
-                        st.markdown(
-                            f'<div style="text-align:center;padding:6px 0;'
-                            f'background:#7D6B2E;color:#FAF7F2;border-radius:8px;'
-                            f'font-weight:700;font-size:0.9rem;cursor:default;">{label}</div>',
-                            unsafe_allow_html=True
-                        )
+                    if sel_class == cls:
+                        st.markdown(_selected_btn_html(label), unsafe_allow_html=True)
                     else:
                         if st.button(label, key=f"cbtn_{cls}", use_container_width=True):
                             st.session_state["_set_class"] = cls
                             st.rerun()
 
-        # 선택 결과 표시
         sel_class = st.session_state.get("_set_class", "")
+
+        # 선택 결과 표시
+        is_saved = (sel_class == current_class)
         st.markdown(
             f'<div style="margin:14px 0 4px;padding:10px 16px;background:#F5F0E8;'
             f'border-radius:8px;border-left:3px solid #7D6B2E;font-size:0.9rem;">'
-            f'<span style="color:#9E9070;">선택된 반</span> &nbsp;'
+            f'<span style="color:#9E9070;">선택된 반</span>&nbsp;&nbsp;'
             f'<b style="color:#3D3929;">{sel_class}</b>'
-            + (f'&nbsp;<span style="color:#9E9070;font-size:0.78rem;">'
-               f'(현재 저장: {current_class})</span>' if current_class and current_class != sel_class else "")
-            + f'</div>',
+            + (f'&nbsp;<span style="color:#059669;font-size:0.78rem;">✔ 저장된 반과 동일</span>'
+               if is_saved and current_class else
+               f'&nbsp;<span style="color:#D97706;font-size:0.78rem;">현재 저장: {current_class or "없음"}</span>'
+               if current_class else "")
+            + '</div>',
             unsafe_allow_html=True
         )
 
@@ -199,14 +217,14 @@ def show():
                     st.markdown(
                         f'<div style="padding:8px 12px;background:#F5F0E8;border-radius:8px;'
                         f'font-size:0.88rem;color:#7D6B2E;">'
-                        f'✔ {option_labels[0]} <span style="color:#D4C9A8;">(자동)</span></div>',
+                        f'✔ {option_labels[0]}'
+                        f'<span style="color:#D4C9A8;margin-left:6px;">(자동)</span></div>',
                         unsafe_allow_html=True
                     )
                     chosen_idx = 0
                 else:
                     chosen_label = st.selectbox(
-                        tangu_code,
-                        option_labels,
+                        tangu_code, option_labels,
                         index=default_idx,
                         key=f"tangu_{tangu_code}",
                         label_visibility="collapsed"
@@ -237,6 +255,7 @@ def show():
     if role in ("teacher", "admin"):
         st.markdown("---")
         st.markdown("### 👩‍🏫 담당 과목 · 반 설정")
+        st.caption("담당 과목과 반을 설정하면 관리자 페이지에서 빠르게 접근할 수 있어요.")
 
         all_subjects = sorted(df["과목"].unique().tolist())
         all_classes  = sort_classes(df["반"].unique().tolist())
