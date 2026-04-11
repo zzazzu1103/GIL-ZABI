@@ -19,7 +19,7 @@ st.set_page_config(
 # ── OAuth 콜백 처리 (최상단) ──────────────────────────────────
 handle_oauth_callback()
 
-# ── 전역 CSS (아이보리 + 올리브골드 테마) ─────────────────────
+# ── 전역 CSS ─────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
@@ -113,14 +113,11 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    # 로그인 UI
     render_auth_sidebar()
 
-    # 권한에 따라 메뉴 표시
     role  = get_role()
     pages = ROLE_PAGES[role]
-
-    page = st.radio("메뉴", pages, label_visibility="collapsed")
+    page  = st.radio("메뉴", pages, label_visibility="collapsed")
 
     st.markdown(
         "<div style='color:#9E9070;font-size:0.72rem;text-align:center;'>"
@@ -153,13 +150,11 @@ elif page == "🗺️ 학교 지도":
     from pages.map_view import show; show()
 elif page == "🔍 선생님 찾기":
     from pages.teacher_search import show; show()
-elif page == "🏫 내 반 설정":
-    from pages.my_class import show; show()
+elif page == "👤 개인 설정":
+    from pages.my_settings import show; show()
 elif page == "⚙️ 관리자":
     if has_permission("teacher"):
         from pages.admin import show; show()
     else:
         from utils.auth import show_permission_denied
         show_permission_denied("teacher")
-elif page == "👤 개인 설정":
-    from pages.my_settings import show; show()
