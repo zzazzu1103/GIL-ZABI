@@ -32,6 +32,8 @@ STATUS_COLORS = {
     "upcoming": "#D4C9A8",
 }
 
+TANGU_CODES = {"탐구A", "탐구B", "탐구C", "탐구D", "탐구E1", "탐구E2"}
+
 
 @st.cache_data(ttl=60)
 def load_timetable():
@@ -84,6 +86,42 @@ def period_status(period, now=None):
     if nxt == period:  return "next"
     if t > end:        return "done"
     return "upcoming"
+
+
+def apply_tangu_map(row: pd.Series, tangu_map: dict) -> pd.Series:
+    """
+    탐구 과목 행에 학생의 개인 설정(교사명, 교실위치)을 적용해 반환.
+    탐구 과목이 아니거나 설정이 없으면 원래 row 그대로 반환.
+    """
+    if row["과목"] not in TANGU_CODES:
+        return row
+    mapping = tangu_map.get(row["과목"])
+    if not mapping:
+        return row
+    row = row.copy()
+    row["교사명"]   = mapping.get("교사명", row["교사명"])
+    row["교실위치"] = mapping.get("교실위치", row["교실위치"])
+    # 층 정보도 갱신 (교실위치 앞 숫자가 층인 경우)
+    try:
+        room_str = str(row["교실위치"])
+        if len(room_str) >= 3 and room_str.isdigit():
+            row["층"] = int(room_str[0])
+    except Exception:
+        pass
+    return row
+
+
+def get_personalized_timetable(df: pd.DataFrame, class_name: str, day: str) -> pd.DataFrame:
+    """
+    특정 반/요일 시간표를 가져오되,
+    세션에 저장된 탐구 매핑(tangu_map)을 적용해 반환.
+    """
+    sub = df[(df["반"] == class_name) & (df["요일"] == day)].copy().sort_values("교시")
+    tangu_map = st.session_state.get("tangu_map", {})
+    if tangu_map:
+        sub = sub.apply(lambda row: apply_tangu_map(row, tangu_map), axis=1)
+    return sub
+
 
 def get_teacher_location(timetable_df, teachers_df, teacher_name, day, period):
     row = timetable_df[
