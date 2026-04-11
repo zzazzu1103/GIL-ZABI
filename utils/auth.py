@@ -38,11 +38,12 @@ ROLE_COLORS = {
     "admin":   "#7D6B2E",
 }
 
+# ★ "내 반 설정" 제거, 관리자(admin)도 모든 메뉴 접근 가능
 ROLE_PAGES = {
     "guest":   ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기"],
-    "student": ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기", "🏫 내 반 설정", "👤 개인 설정"],
+    "student": ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기", "👤 개인 설정"],
     "teacher": ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기", "👤 개인 설정", "⚙️ 관리자"],
-    "admin":   ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기", "🏫 내 반 설정", "👤 개인 설정", "⚙️ 관리자"],
+    "admin":   ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기", "👤 개인 설정", "⚙️ 관리자"],
 }
 
 
@@ -100,14 +101,10 @@ def _cleanup_expired_tokens():
 
 
 def _restore_user_settings(email: str):
-    """
-    저장된 개인 설정을 세션에 복원.
-    my_class, tangu_map, my_subjects, my_classes 등을 모두 복원.
-    """
+    """저장된 개인 설정을 세션에 복원."""
     try:
         from utils.user_settings import load_user_settings
         settings = load_user_settings(email)
-
         if settings.get("my_class"):
             st.session_state["my_class"] = settings["my_class"]
         if settings.get("tangu_map"):
@@ -184,22 +181,20 @@ def resolve_role(email: str) -> str:
 
 def handle_oauth_callback():
     """
-    매 렌더링마다 호출됨.
-    1) ?sid=... → 토큰으로 세션 복원 (새로고침 유지)
-    2) ?code=... → OAuth 콜백 처리
-    세션이 이미 복원돼 있으면 즉시 반환.
+    매 렌더링마다 호출.
+    1) 세션에 user 있으면 → my_class 누락 시 파일에서 보완 후 즉시 종료
+    2) ?sid=... → 토큰으로 세션 복원
+    3) ?code=... → OAuth 콜백 처리
     """
-    # 이미 로그인 세션이 살아 있으면 개인 설정만 보완 후 종료
+    # 이미 세션 살아 있음
     if "user" in st.session_state:
-        # my_class 등이 세션에 없으면 파일에서 보완
         if "my_class" not in st.session_state:
-            user = st.session_state["user"]
-            _restore_user_settings(user.get("email", ""))
+            _restore_user_settings(st.session_state["user"].get("email", ""))
         return
 
     params = st.query_params
 
-    # ── 케이스 1: sid로 세션 복원 ────────────────────────────────────────
+    # sid로 세션 복원
     sid = params.get("sid")
     if sid:
         user_data = _load_session_token(sid)
@@ -209,11 +204,10 @@ def handle_oauth_callback():
             _restore_user_settings(user_data.get("email", ""))
             return
         else:
-            # 만료된 sid → 로그인 페이지로
             st.query_params.clear()
             st.rerun()
 
-    # ── 케이스 2: OAuth code 콜백 ────────────────────────────────────────
+    # OAuth code 콜백
     if "code" not in params:
         return
 
