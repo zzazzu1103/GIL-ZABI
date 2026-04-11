@@ -6,13 +6,13 @@ import os
 KST = timezone(timedelta(hours=9))
 
 PERIODS = {
-    1: (time(8, 30),  time(9, 20)),
-    2: (time(9, 30),  time(10, 20)),
-    3: (time(10, 30), time(11, 20)),
-    4: (time(11, 30), time(12, 20)),
-    5: (time(13, 10), time(14, 0)),
-    6: (time(14, 10), time(15, 0)),
-    7: (time(15, 10), time(16, 0)),
+    1: (time(9, 10),  time(10, 00)),
+    2: (time(10, 10),  time(11, 00)),
+    3: (time(11, 10), time(12, 00)),
+    4: (time(12, 10), time(13, 00)),
+    5: (time(14, 00), time(14, 50)),
+    6: (time(15, 00), time(15, 50)),
+    7: (time(16, 10), time(16, 50)),
 }
 
 DAY_MAP = {0: "월", 1: "화", 2: "수", 3: "목", 4: "금"}
