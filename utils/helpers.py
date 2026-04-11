@@ -35,6 +35,20 @@ STATUS_COLORS = {
 TANGU_CODES = {"탐구A", "탐구B", "탐구C", "탐구D", "탐구E1", "탐구E2"}
 
 
+def sort_classes(class_list: list) -> list:
+    """
+    반 목록을 숫자 기준으로 정렬.
+    '1-1', '1-2', ..., '1-12', '2-1', ... 순서로.
+    """
+    def _key(c):
+        try:
+            parts = c.split("-")
+            return (int(parts[0]), int(parts[1]))
+        except Exception:
+            return (999, 999)
+    return sorted(class_list, key=_key)
+
+
 @st.cache_data(ttl=60)
 def load_timetable():
     df = pd.read_csv(os.path.join(DATA_DIR, "timetable.csv"))
@@ -89,10 +103,7 @@ def period_status(period, now=None):
 
 
 def apply_tangu_map(row: pd.Series, tangu_map: dict) -> pd.Series:
-    """
-    탐구 과목 행에 학생의 개인 설정(교사명, 교실위치)을 적용해 반환.
-    탐구 과목이 아니거나 설정이 없으면 원래 row 그대로 반환.
-    """
+    """탐구 과목 행에 학생 개인 설정(교사명, 교실위치)을 적용."""
     if row["과목"] not in TANGU_CODES:
         return row
     mapping = tangu_map.get(row["과목"])
@@ -101,7 +112,6 @@ def apply_tangu_map(row: pd.Series, tangu_map: dict) -> pd.Series:
     row = row.copy()
     row["교사명"]   = mapping.get("교사명", row["교사명"])
     row["교실위치"] = mapping.get("교실위치", row["교실위치"])
-    # 층 정보도 갱신 (교실위치 앞 숫자가 층인 경우)
     try:
         room_str = str(row["교실위치"])
         if len(room_str) >= 3 and room_str.isdigit():
@@ -112,10 +122,7 @@ def apply_tangu_map(row: pd.Series, tangu_map: dict) -> pd.Series:
 
 
 def get_personalized_timetable(df: pd.DataFrame, class_name: str, day: str) -> pd.DataFrame:
-    """
-    특정 반/요일 시간표를 가져오되,
-    세션에 저장된 탐구 매핑(tangu_map)을 적용해 반환.
-    """
+    """반/요일 시간표를 가져오되 탐구 매핑을 적용해 반환."""
     sub = df[(df["반"] == class_name) & (df["요일"] == day)].copy().sort_values("교시")
     tangu_map = st.session_state.get("tangu_map", {})
     if tangu_map:
