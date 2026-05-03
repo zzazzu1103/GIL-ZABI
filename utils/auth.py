@@ -1,6 +1,7 @@
 """
 구글 OAuth 로그인 + 권한 관리 모듈
 새로고침 후에도 로그인 + 개인설정 상태 유지 (서버사이드 토큰 파일)
+학교 계정(@jeohyeon.hs.kr)만 로그인 허용
 """
 
 import streamlit as st
@@ -17,6 +18,9 @@ KST = timezone(timedelta(hours=9))
 GOOGLE_AUTH_URL  = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USER_URL  = "https://www.googleapis.com/oauth2/v3/userinfo"
+
+# ── 학교 계정 도메인 ──────────────────────────────────────────
+ALLOWED_DOMAIN = "jeohyeon.hs.kr"
 
 _TOKEN_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -38,7 +42,6 @@ ROLE_COLORS = {
     "admin":   "#7D6B2E",
 }
 
-# ★ "내 반 설정" 제거, 관리자(admin)도 모든 메뉴 접근 가능
 ROLE_PAGES = {
     "guest":   ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기"],
     "student": ["🏠 홈", "📅 시간표 조회", "🗺️ 학교 지도", "🔍 선생님 찾기", "👤 개인 설정"],
@@ -47,7 +50,18 @@ ROLE_PAGES = {
 }
 
 
-# ── 서버사이드 세션 토큰 ─────────────────────────────────────────────────────
+# ── 도메인 검사 ───────────────────────────────────────────────
+
+def is_allowed_email(email: str) -> bool:
+    """학교 계정 도메인인지 확인. secrets에 allowed_domain 있으면 우선 사용."""
+    try:
+        domain = st.secrets.get("roles", {}).get("allowed_domain", ALLOWED_DOMAIN)
+    except Exception:
+        domain = ALLOWED_DOMAIN
+    return email.lower().endswith(f"@{domain}")
+
+
+# ── 서버사이드 세션 토큰 ──────────────────────────────────────
 
 def _ensure_token_dir():
     os.makedirs(_TOKEN_DIR, exist_ok=True)
@@ -101,23 +115,14 @@ def _cleanup_expired_tokens():
 
 
 def _restore_user_settings(email: str):
-    """저장된 개인 설정을 세션에 복원."""
     try:
-        from utils.user_settings import load_user_settings
-        settings = load_user_settings(email)
-        if settings.get("my_class"):
-            st.session_state["my_class"] = settings["my_class"]
-        if settings.get("tangu_map"):
-            st.session_state["tangu_map"] = settings["tangu_map"]
-        if settings.get("my_subjects"):
-            st.session_state["my_subjects"] = settings["my_subjects"]
-        if settings.get("my_classes"):
-            st.session_state["my_classes"] = settings["my_classes"]
+        from utils.user_settings import apply_user_settings_to_session
+        apply_user_settings_to_session(email)
     except Exception:
         pass
 
 
-# ── OAuth 헬퍼 ────────────────────────────────────────────────────────────
+# ── OAuth 헬퍼 ────────────────────────────────────────────────
 
 def get_oauth_url() -> str:
     try:
@@ -136,6 +141,7 @@ def get_oauth_url() -> str:
         "scope":         "openid email profile",
         "access_type":   "offline",
         "prompt":        "select_account",
+        "hd":            ALLOWED_DOMAIN,  # 구글 로그인 화면에서 학교 계정 우선 표시
     }
     return GOOGLE_AUTH_URL + "?" + urllib.parse.urlencode(params)
 
@@ -177,16 +183,9 @@ def resolve_role(email: str) -> str:
     return "student"
 
 
-# ── 핵심: 로그인 상태 복원 + OAuth 콜백 처리 ─────────────────────────────
+# ── 핵심: 로그인 상태 복원 + OAuth 콜백 처리 ─────────────────
 
 def handle_oauth_callback():
-    """
-    매 렌더링마다 호출.
-    1) 세션에 user 있으면 → my_class 누락 시 파일에서 보완 후 즉시 종료
-    2) ?sid=... → 토큰으로 세션 복원
-    3) ?code=... → OAuth 콜백 처리
-    """
-    # 이미 세션 살아 있음
     if "user" in st.session_state:
         if "my_class" not in st.session_state:
             _restore_user_settings(st.session_state["user"].get("email", ""))
@@ -207,7 +206,6 @@ def handle_oauth_callback():
             st.query_params.clear()
             st.rerun()
 
-    # OAuth code 콜백
     if "code" not in params:
         return
 
@@ -218,16 +216,29 @@ def handle_oauth_callback():
     with st.spinner("구글 로그인 처리 중..."):
         token_data = exchange_code_for_token(code)
         if not token_data or "access_token" not in token_data:
-            st.error(f"로그인 실패: 토큰 발급 오류 — {token_data}")
+            st.error(f"로그인 실패: 토큰 발급 오류")
+            st.query_params.clear()
             return
 
         user_info = get_user_info(token_data["access_token"])
         if not user_info:
             st.error("로그인 실패: 사용자 정보 조회 오류")
+            st.query_params.clear()
             return
 
         email = user_info.get("email", "")
-        role  = resolve_role(email)
+
+        # ── 학교 계정 도메인 검사 ──────────────────────────────
+        if not is_allowed_email(email):
+            st.query_params.clear()
+            st.error(
+                f"⛔ 학교 계정으로만 로그인할 수 있어요.\n\n"
+                f"`@{ALLOWED_DOMAIN}` 계정을 사용해 주세요.\n\n"
+                f"현재 계정: `{email}`"
+            )
+            st.stop()
+
+        role = resolve_role(email)
 
         user_data = {
             "email":    email,
@@ -263,7 +274,7 @@ def logout():
     st.rerun()
 
 
-# ── 유틸 함수 ─────────────────────────────────────────────────────────────
+# ── 유틸 함수 ─────────────────────────────────────────────────
 
 def get_current_user() -> dict | None:
     return st.session_state.get("user")
@@ -330,7 +341,12 @@ def render_auth_sidebar():
         )
         oauth_url = get_oauth_url()
         if oauth_url:
-            st.link_button("🔐 구글 계정으로 로그인", oauth_url, use_container_width=True)
+            st.link_button("🔐 학교 계정으로 로그인", oauth_url, use_container_width=True)
+            st.markdown(
+                f'<div style="text-align:center;font-size:0.72rem;color:#B8A05A;margin-top:6px;">'
+                f'@{ALLOWED_DOMAIN} 계정만 가능</div>',
+                unsafe_allow_html=True,
+            )
         else:
             st.warning("OAuth 설정이 필요합니다.")
 
@@ -344,7 +360,7 @@ def show_permission_denied(required: str):
         f'접근 권한이 없습니다</div>'
         f'<div style="color:#9E9070;font-size:0.9rem;">'
         f'이 페이지는 <b>{labels.get(required, required)}</b> 이상만 접근할 수 있어요.<br>'
-        f'구글 계정으로 로그인해 주세요.</div>'
+        f'학교 계정으로 로그인해 주세요.</div>'
         f'</div>',
         unsafe_allow_html=True,
     )
