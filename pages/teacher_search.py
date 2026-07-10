@@ -3,7 +3,8 @@ from datetime import datetime, timezone, timedelta
 KST = timezone(timedelta(hours=9))
 from utils.helpers import (
     load_timetable, load_teachers, get_current_period,
-    get_next_period, get_current_day, PERIODS, get_teacher_location
+    get_next_period, get_current_day, PERIODS, get_teacher_location,
+    load_teacher_timetable,
 )
 from utils.floorplan import render_map, find_room_floor, room_display_name
 
@@ -17,6 +18,10 @@ def show():
 
     timetable_df = load_timetable()
     teachers_df  = load_teachers()
+    try:
+        schedule_df = load_teacher_timetable()   # 선택과목 포함 교사별 전체 시간표
+    except FileNotFoundError:
+        schedule_df = None
     now          = datetime.now(KST)
     cur_day      = get_current_day(now)
     cur_period   = get_current_period(now)
@@ -149,9 +154,10 @@ def show():
     if cur_day:
         st.markdown(f"### 📅 {cur_day}요일 수업 일정")
 
-        day_schedule = timetable_df[
-            (timetable_df["교사명"] == selected_teacher) &
-            (timetable_df["요일"] == cur_day)
+        src = schedule_df if schedule_df is not None else timetable_df
+        day_schedule = src[
+            (src["교사명"] == selected_teacher) &
+            (src["요일"] == cur_day)
         ].sort_values("교시")
 
         if day_schedule.empty:
@@ -172,13 +178,14 @@ def show():
                 elif is_next:
                     badge_html = '<span class="status-badge badge-next">🟢 다음 교시</span>'
 
+                room_label = room_display_name(str(row["교실위치"]))
                 st.markdown(f"""
                 <div class="card {card_cls}">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
                         <div>
                             <div style="color:#9E9070;font-size:0.78rem;">{period}교시 · {time_str}</div>
                             <div style="font-size:1.05rem;font-weight:700;margin-top:4px;">
-                                {row['과목']} — {row['반']}
+                                {row['과목']} — {room_label}
                             </div>
                         </div>
                         <div style="text-align:right;">
@@ -195,7 +202,8 @@ def show():
     # ── 주간 전체 일정 ─────────────────────────────────────────────────────────
     with st.expander("📋 주간 전체 시간표 보기"):
         days = ["월","화","수","목","금"]
-        week_data = timetable_df[timetable_df["교사명"] == selected_teacher]
+        src = schedule_df if schedule_df is not None else timetable_df
+        week_data = src[src["교사명"] == selected_teacher]
 
         if week_data.empty:
             st.info("등록된 수업 데이터가 없습니다.")
@@ -206,5 +214,7 @@ def show():
                     st.markdown(f"**{day}요일**")
                     for _, r in day_df.iterrows():
                         st.markdown(
-                            f"　{int(r['교시'])}교시 · {r['과목']} · {r['반']} · 📍{r['교실위치']}({r['층']}층)"
+                            f"　{int(r['교시'])}교시 · {r['과목']} · "
+                            f"{room_display_name(str(r['교실위치']))} · "
+                            f"📍{r['교실위치']}({r['층']}층)"
                         )
