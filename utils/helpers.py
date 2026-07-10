@@ -112,12 +112,10 @@ def apply_tangu_map(row: pd.Series, tangu_map: dict) -> pd.Series:
     row = row.copy()
     row["교사명"]   = mapping.get("교사명", row["교사명"])
     row["교실위치"] = mapping.get("교실위치", row["교실위치"])
-    try:
-        room_str = str(row["교실위치"])
-        if len(room_str) >= 3 and room_str.isdigit():
-            row["층"] = int(room_str[0])
-    except Exception:
-        pass
+    from utils.floorplan import find_room_floor
+    floor = find_room_floor(row["교실위치"])
+    if floor is not None:
+        row["층"] = floor
     return row
 
 

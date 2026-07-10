@@ -136,8 +136,11 @@ def _render_pivot(df, sel_class, days):
             return "background:#F5F0E8; color:#555;"
         return "background:#fff; color:#3D3929; white-space:pre-line; font-size:0.85rem;"
 
+    styler = pivot.fillna("—").style
+    # pandas 2.1+ 에서 Styler.applymap 이 map 으로 바뀜 (3.0에서 applymap 제거)
+    style_fn = styler.map if hasattr(styler, "map") else styler.applymap
     st.dataframe(
-        pivot.fillna("—").style.applymap(style_cell),
+        style_fn(style_cell),
         use_container_width=True,
         height=320,
     )
