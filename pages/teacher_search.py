@@ -5,6 +5,7 @@ from utils.helpers import (
     load_timetable, load_teachers, get_current_period,
     get_next_period, get_current_day, PERIODS, get_teacher_location
 )
+from utils.floorplan import render_map, find_room_floor, room_display_name
 
 def show():
     st.markdown("""
@@ -94,41 +95,55 @@ def show():
             </div>
         </div>
         """, unsafe_allow_html=True)
+    # 현재 위치 계산: 수업 중이면 그 교실, 쉬는 시간·공강이면 교무실
+    loc = get_teacher_location(timetable_df, teachers_df,
+                               selected_teacher, cur_day, cur_period)
+    is_teaching = loc["상태"] == "수업중"
+    loc_rid   = str(loc["교실"])
+    loc_floor = find_room_floor(loc_rid)
+    if loc_floor is None:
+        loc_floor = int(loc["층"]) if str(loc["층"]).isdigit() and 1 <= int(loc["층"]) <= 5 else 2
+
+    if not cur_day:
+        when_str, note = "주말", "오늘은 수업이 없어요 · 교무실 기준 위치예요"
+    elif cur_period is None:
+        when_str, note = "쉬는 시간", "지금은 쉬는 시간이에요 · 교무실에 계세요"
+    else:
+        s, e = PERIODS.get(cur_period, (None, None))
+        when_str = f"{cur_period}교시 · {s.strftime('%H:%M')}~{e.strftime('%H:%M')}" if s else f"{cur_period}교시"
+        note = "" if is_teaching else "이번 교시에는 수업이 없어요 · 교무실에 계세요"
+
     with c2:
-        # 현재 위치
-        if cur_day and cur_period:
-            loc = get_teacher_location(timetable_df, teachers_df,
-                                       selected_teacher, cur_day, cur_period)
-            s, e = PERIODS.get(cur_period, (None, None))
-            time_str = f"{s.strftime('%H:%M')}~{e.strftime('%H:%M')}" if s else ""
+        status_color = "#D97706" if is_teaching else "#059669"
+        status_icon  = "🔴" if is_teaching else "🟢"
+        badge_cls    = "badge-current" if is_teaching else "badge-next"
+        status_label = "수업 중" if is_teaching else "교무실"
 
-            status_color = "#D97706" if loc["상태"] == "수업중" else "#059669"
-            status_icon  = "🔴" if loc["상태"] == "수업중" else "🟢"
-            badge_cls    = "badge-current" if loc["상태"] == "수업중" else "badge-next"
+        extra = ""
+        if is_teaching:
+            extra += f"<div style='color:#3D3929; margin-top:6px;'>{loc['과목']} · {loc['반']}</div>"
+        if note:
+            extra += f"<div style='color:#9E9070; font-size:0.8rem; margin-top:6px;'>{note}</div>"
 
-            st.markdown(f"""
-            <div class="card card-current">
-                <div style="color:#9E9070; font-size:0.8rem; margin-bottom:8px;">
-                    지금 ({cur_period}교시 · {time_str})
-                </div>
-                <span class="status-badge {badge_cls}">
-                    {status_icon} {loc['상태']}
-                </span>
-                <div style="font-size:1.4rem; font-weight:900; color:{status_color}; margin:10px 0 4px;">
-                    📍 {loc['교실']}
-                </div>
-                <div style="color:#9E9070; font-size:0.85rem;">{loc['층']}층</div>
-                {"<div style='color:#3D3929; margin-top:6px;'>"+loc['과목']+" · "+loc['반']+"</div>" if loc['상태']=='수업중' else ""}
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div class="card">
-                <div style="color:#9E9070; font-size:0.85rem;">
-                    현재 수업 시간이 아닙니다.<br>교무실에서 찾으세요.
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="card {"card-current" if is_teaching else "card-next"}">'
+            f'<div style="color:#9E9070; font-size:0.8rem; margin-bottom:8px;">지금 ({when_str})</div>'
+            f'<span class="status-badge {badge_cls}">{status_icon} {status_label}</span>'
+            f'<div style="font-size:1.4rem; font-weight:900; color:{status_color}; margin:10px 0 4px;">'
+            f'📍 {room_display_name(loc_rid)}</div>'
+            f'<div style="color:#9E9070; font-size:0.85rem;">{loc_floor}층</div>'
+            f'{extra}</div>',
+            unsafe_allow_html=True,
+        )
+
+    # ── 지도에서 위치 보기 ─────────────────────────────────────────────────────
+    st.markdown(f"### 🗺️ 지도에서 위치 보기 — {loc_floor}층")
+    st.caption(
+        f"📍 {selected_teacher} 선생님은 지금 "
+        + (f"**{room_display_name(loc_rid)}**에서 수업 중이에요."
+           if is_teaching else f"**{room_display_name(loc_rid)}**에 계세요.")
+    )
+    render_map(loc_floor, {loc_rid: "teacher"})
 
     # ── 오늘 하루 일정 ─────────────────────────────────────────────────────────
     if cur_day:
