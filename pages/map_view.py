@@ -13,6 +13,7 @@ KST = timezone(timedelta(hours=9))
 from utils.helpers import (
     load_timetable, get_current_period, get_next_period,
     get_current_day, get_personalized_timetable, PERIODS, sort_classes,
+    is_unselected_elective,
 )
 from utils.floorplan import render_map, find_room_floor, room_display_name
 
@@ -33,10 +34,14 @@ def _class_highlight_entries(df, sel_class, cur_day, cur_period, nxt_period):
             continue
         r = row.iloc[0]
         rid = str(r["교실위치"])
+        unselected = is_unselected_elective(r["과목"])
         entries.append({
-            "status": status, "period": period, "rid": rid,
-            "subject": r["과목"], "teacher": r["교사명"],
-            "floor": find_room_floor(rid, int(r["층"])),
+            "status": status, "period": period,
+            "rid": None if unselected else rid,
+            "subject": r["과목"],
+            "teacher": None if unselected else r["교사명"],
+            "floor": None if unselected else find_room_floor(rid, int(r["층"])),
+            "unselected": unselected,
         })
     return entries
 
@@ -73,8 +78,9 @@ def show():
     # 반이 바뀌면 현재(없으면 다음) 수업이 있는 층으로 자동 전환
     if st.session_state.get("_map_last_class") != sel_class:
         st.session_state["_map_last_class"] = sel_class
-        if entries:
-            st.session_state["map_floor_sel"] = entries[0]["floor"]
+        located = [e for e in entries if e["floor"] is not None]
+        if located:
+            st.session_state["map_floor_sel"] = located[0]["floor"]
 
     with col2:
         st.session_state.setdefault("map_floor_sel", 2)
@@ -85,7 +91,7 @@ def show():
     # 같은 교실이 현재+다음 둘 다면 '현재'가 우선하도록 next → current 순으로 기록
     highlight_map = {}
     for e in sorted(entries, key=lambda e: e["status"] != "next"):
-        if e["floor"] == sel_floor:
+        if e["rid"] is not None and e["floor"] == sel_floor:
             highlight_map[e["rid"]] = e["status"]
 
     # ── 지도 렌더링 ────────────────────────────────────────────────
@@ -106,6 +112,26 @@ def show():
                 is_cur = e["status"] == "current"
                 card_cls, badge_cls = ("card-current", "badge-current") if is_cur else ("card-next", "badge-next")
                 badge_label = "🔴 수업 중" if is_cur else "🟢 다음 교시"
+
+                if e["unselected"]:
+                    st.markdown(f"""
+                    <div class="card {card_cls}">
+                      <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                          <span class="status-badge {badge_cls}">{badge_label}</span>
+                          <div style="margin-top:8px;font-size:1.1rem;font-weight:700;">
+                            {e['period']}교시 · {e['subject']} <span style="font-size:0.8rem;color:#9E9070;">선택과목</span>
+                          </div>
+                          <div style="color:#9E9070;font-size:0.85rem;">{time_str}</div>
+                        </div>
+                        <div style="text-align:right;">
+                          <div style="font-size:0.95rem;font-weight:700;color:#B45309;">❓ 선생님 미선택</div>
+                          <div style="color:#9E9070;font-size:0.75rem;">개인 설정에서 선택하면<br>위치가 표시돼요</div>
+                        </div>
+                      </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    continue
                 floor_note = "" if e["floor"] == sel_floor else \
                     f'<span style="color:#B45309;font-size:0.75rem;"> · 지도에서 {e["floor"]}층을 선택하세요</span>'
 

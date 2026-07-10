@@ -32,7 +32,18 @@ STATUS_COLORS = {
     "upcoming": "#D4C9A8",
 }
 
-TANGU_CODES = {"탐구A", "탐구B", "탐구C", "탐구D", "탐구E1", "탐구E2"}
+# 선택과목: 학생마다 담당 선생님·교실이 다른 과목 (알파벳이 붙은 과목 코드)
+ELECTIVE_CODES = {"탐구A", "탐구B", "탐구C", "탐구D", "탐구E1", "탐구E2", "교과F", "교과G"}
+TANGU_CODES = ELECTIVE_CODES  # 하위 호환
+
+
+def is_elective(subject) -> bool:
+    return str(subject) in ELECTIVE_CODES
+
+
+def is_unselected_elective(subject) -> bool:
+    """개인 설정에서 아직 선생님을 고르지 않은 선택과목인지."""
+    return is_elective(subject) and str(subject) not in st.session_state.get("tangu_map", {})
 
 
 def sort_classes(class_list: list) -> list:
@@ -59,6 +70,15 @@ def load_timetable():
 @st.cache_data(ttl=60)
 def load_teachers():
     return pd.read_csv(os.path.join(DATA_DIR, "teachers.csv"))
+
+@st.cache_data(ttl=60)
+def load_teacher_timetable():
+    """교사별 시간표 (교사명,요일,교시,과목,교실위치,층) — 선택과목 포함 전체 수업."""
+    df = pd.read_csv(os.path.join(DATA_DIR, "teacher_timetable.csv"))
+    df["교시"] = df["교시"].astype(int)
+    df["층"]   = df["층"].astype(int)
+    df["교실위치"] = df["교실위치"].astype(str)
+    return df
 
 @st.cache_data(ttl=60)
 def load_rooms():
@@ -129,6 +149,23 @@ def get_personalized_timetable(df: pd.DataFrame, class_name: str, day: str) -> p
 
 
 def get_teacher_location(timetable_df, teachers_df, teacher_name, day, period):
+    # 1순위: 교사 시간표 (선택과목 포함 전체 수업이 들어 있음)
+    try:
+        ttt = load_teacher_timetable()
+        row = ttt[
+            (ttt["교사명"] == teacher_name) &
+            (ttt["요일"]   == day) &
+            (ttt["교시"]   == period)
+        ]
+        if not row.empty:
+            r = row.iloc[0]
+            from utils.floorplan import room_display_name
+            ban = room_display_name(r["교실위치"])
+            return {"상태": "수업중", "교실": r["교실위치"], "층": r["층"],
+                    "과목": r["과목"], "반": ban}
+    except FileNotFoundError:
+        pass
+    # 2순위: 반별 시간표
     row = timetable_df[
         (timetable_df["교사명"] == teacher_name) &
         (timetable_df["요일"]   == day) &

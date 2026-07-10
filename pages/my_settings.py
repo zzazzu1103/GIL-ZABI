@@ -7,7 +7,11 @@ pages/my_settings.py
 """
 
 import streamlit as st
-from utils.helpers import load_timetable, load_teachers, sort_classes
+from utils.helpers import (
+    load_timetable, load_teachers, sort_classes,
+    load_teacher_timetable, ELECTIVE_CODES,
+)
+from utils.floorplan import find_room_floor
 from utils.auth import get_current_user, get_role
 from utils.user_settings import load_user_settings, save_user_settings
 
@@ -42,20 +46,36 @@ def _selected_btn_html(label: str) -> str:
 
 
 def _get_tangu_options(timetable_df, my_class, tangu_code):
+    """선택과목 코드의 전체 선생님 목록.
+
+    반 시간표에는 반 교실에서 수업하는 선생님 한 명만 적혀 있으므로,
+    교사 시간표에서 그 과목을 가르치는 모든 선생님(교실 고정)을 가져온다.
+    """
     if not my_class:
         return []
-    rows = timetable_df[
+    # 이 반 시간표에 해당 과목이 있어야 선택 대상
+    in_class = timetable_df[
         (timetable_df["반"] == my_class) &
         (timetable_df["과목"] == tangu_code)
-    ][["교사명", "교실위치"]].drop_duplicates()
-    return [
-        {
-            "교사명": r["교사명"],
-            "교실위치": str(r["교실위치"]),
-            "label": f"{r['교사명']} 선생님 · {r['교실위치']}호",
-        }
-        for _, r in rows.iterrows()
     ]
+    if in_class.empty:
+        return []
+    try:
+        ttt = load_teacher_timetable()
+        rows = ttt[ttt["과목"] == tangu_code][["교사명", "교실위치"]].drop_duplicates()
+    except FileNotFoundError:
+        rows = in_class[["교사명", "교실위치"]].drop_duplicates()
+    opts = []
+    for _, r in rows.iterrows():
+        room = str(r["교실위치"])
+        floor = find_room_floor(room)
+        floor_str = f" ({floor}층)" if floor else ""
+        opts.append({
+            "교사명": r["교사명"],
+            "교실위치": room,
+            "label": f"{r['교사명']} 선생님 · {room}호{floor_str}",
+        })
+    return sorted(opts, key=lambda o: o["교사명"])
 
 
 def show():
@@ -183,28 +203,34 @@ def show():
             unsafe_allow_html=True
         )
 
-        # ── 탐구 과목 개인화 ─────────────────────────────────────────────
+        # ── 선택과목 개인화 (탐구 A~E, 교과 F~G) ─────────────────────────
         st.markdown("---")
-        st.markdown("### 🔬 탐구 과목 설정")
-        st.caption("탐구 A~E 과목은 학생마다 담당 선생님과 교실이 달라요. 내 수업에 맞게 선택해 주세요.")
+        st.markdown("### 🔬 선택과목 설정")
+        st.caption(
+            "탐구·교과 선택과목은 학생마다 담당 선생님과 교실이 달라요. "
+            "내가 듣는 선생님을 선택하면 시간표와 지도에 교실·층이 표시돼요."
+        )
 
         saved_tangu = saved.get("tangu_map", {})
         new_tangu_map = {}
         tangu_found_any = False
+        NONE_LABEL = "— 선택 안 함 —"
 
-        for tangu_code in ["탐구A", "탐구B", "탐구C", "탐구D", "탐구E1", "탐구E2"]:
+        for tangu_code in sorted(ELECTIVE_CODES):
             options = _get_tangu_options(df, sel_class, tangu_code)
             if not options:
                 continue
             tangu_found_any = True
-            option_labels = [o["label"] for o in options]
+            option_labels = [NONE_LABEL] + [o["label"] for o in options]
 
+            # 저장된 선택을 (교사명, 교실위치) 기준으로 복원
             prev = saved_tangu.get(tangu_code, {})
-            prev_label = (
-                f"{prev.get('교사명','')} 선생님 · {prev.get('교실위치','')}호"
-                if prev else None
-            )
-            default_idx = option_labels.index(prev_label) if prev_label in option_labels else 0
+            default_idx = 0
+            if prev:
+                for i, o in enumerate(options):
+                    if o["교사명"] == prev.get("교사명"):
+                        default_idx = i + 1
+                        break
 
             col_l, col_r = st.columns([1, 3])
             with col_l:
@@ -213,32 +239,22 @@ def show():
                     unsafe_allow_html=True
                 )
             with col_r:
-                if len(options) == 1:
-                    st.markdown(
-                        f'<div style="padding:8px 12px;background:#F5F0E8;border-radius:8px;'
-                        f'font-size:0.88rem;color:#7D6B2E;">'
-                        f'✔ {option_labels[0]}'
-                        f'<span style="color:#D4C9A8;margin-left:6px;">(자동)</span></div>',
-                        unsafe_allow_html=True
-                    )
-                    chosen_idx = 0
-                else:
-                    chosen_label = st.selectbox(
-                        tangu_code, option_labels,
-                        index=default_idx,
-                        key=f"tangu_{tangu_code}",
-                        label_visibility="collapsed"
-                    )
-                    chosen_idx = option_labels.index(chosen_label)
+                chosen_label = st.selectbox(
+                    tangu_code, option_labels,
+                    index=default_idx,
+                    key=f"tangu_{tangu_code}",
+                    label_visibility="collapsed"
+                )
 
-            chosen = options[chosen_idx]
-            new_tangu_map[tangu_code] = {
-                "교사명":   chosen["교사명"],
-                "교실위치": chosen["교실위치"],
-            }
+            if chosen_label != NONE_LABEL:
+                chosen = options[option_labels.index(chosen_label) - 1]
+                new_tangu_map[tangu_code] = {
+                    "교사명":   chosen["교사명"],
+                    "교실위치": chosen["교실위치"],
+                }
 
         if not tangu_found_any:
-            st.info(f"{sel_class}반에는 탐구 과목이 없어요.")
+            st.info(f"{sel_class}반에는 선택과목이 없어요.")
 
         # ── 저장 ────────────────────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
@@ -248,7 +264,7 @@ def show():
             save_user_settings(email, saved)
             st.session_state["my_class"]  = sel_class
             st.session_state["tangu_map"] = new_tangu_map
-            st.success(f"✅ {sel_class}반으로 저장됐어요! 탐구 과목 {len(new_tangu_map)}개 설정 완료.")
+            st.success(f"✅ {sel_class}반으로 저장됐어요! 선택과목 {len(new_tangu_map)}개 설정 완료.")
             st.balloons()
 
     # ── 교사 설정 ──────────────────────────────────────────────────────────
