@@ -1,5 +1,9 @@
-streamlit>=1.35.0
-pandas>=2.0.0
+# 배포 서버(Streamlit Cloud)에서 최신 네이티브 휠(pandas 3.x / numpy 2.4 /
+# pyarrow 25 등)이 세그폴트를 일으켜 검증된 안정 버전 범위로 고정.
+streamlit>=1.44,<1.50
+pandas>=2.2,<3.0
+numpy>=2.0,<2.3
+pyarrow>=17,<21
 requests>=2.31.0
 gspread>=6.0.0
 google-auth>=2.28.0
