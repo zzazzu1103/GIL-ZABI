@@ -8,7 +8,17 @@ from utils.helpers import (
     get_current_day, PERIODS, period_status,
     STATUS_LABELS, STATUS_COLORS, sort_classes,
     get_personalized_timetable, is_unselected_elective,
+    is_elective, elective_subject_name,
 )
+
+
+def _subject_display(subject, teacher) -> str:
+    """선택과목이면 실제 과목명을 함께 표시 (예: '탐구D · 물리Ⅱ')."""
+    if is_elective(subject):
+        real = elective_subject_name(subject, teacher)
+        if real:
+            return f"{subject} · {real}"
+    return str(subject)
 
 
 def _render_day_cards(sub: pd.DataFrame, sel_day: str, cur_day, cur_period, nxt_period, now):
@@ -79,7 +89,7 @@ def _render_day_cards(sub: pd.DataFrame, sel_day: str, cur_day, cur_period, nxt_
                 <div style="flex:1;">
                     <div style="font-size:0.78rem; color:#9E9070; margin-bottom:4px;">{time_str}</div>
                     <div style="font-size:1.15rem; font-weight:700; color:#3D3929;">
-                        {row['과목']}
+                        {_subject_display(row['과목'], row['교사명'])}
                         <span style="font-size:0.85rem; font-weight:400; color:#9E9070; margin-left:6px;">
                             {row['교사명']} 선생님
                         </span>
@@ -164,7 +174,7 @@ def _render_pivot(df, sel_class, days):
     def _cell(row):
         if is_unselected_elective(row["과목"]):
             return f"{row['과목']}\n(선생님 미선택)"
-        return f"{row['과목']}\n{row['교사명']}\n{row['교실위치']}"
+        return f"{_subject_display(row['과목'], row['교사명'])}\n{row['교사명']}\n{row['교실위치']}"
 
     # 배포 서버(py3.14)에서 st.dataframe 의 네이티브 직렬화가 프로세스를
     # 죽이는 문제가 있어 순수 HTML 표로 렌더링한다.

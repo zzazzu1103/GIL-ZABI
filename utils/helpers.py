@@ -72,6 +72,32 @@ def load_teachers():
     return pd.read_csv(os.path.join(DATA_DIR, "teachers.csv"))
 
 @st.cache_data(ttl=60)
+def load_elective_subjects() -> dict:
+    """(과목코드, 교사명) → 실제 과목명 (예: (탐구D, 이지원) → 물리Ⅱ).
+
+    data/elective_subjects.csv 를 수정해 실제 과목명을 관리한다.
+    """
+    try:
+        df = pd.read_csv(os.path.join(DATA_DIR, "elective_subjects.csv"))
+        return {
+            (str(r["과목코드"]), str(r["교사명"])): str(r["과목명"])
+            for _, r in df.iterrows() if str(r.get("과목명", "")).strip()
+        }
+    except FileNotFoundError:
+        return {}
+
+
+def elective_subject_name(code, teacher) -> str:
+    """선택과목 코드+교사 → 실제 과목명. 매핑이 없으면 teachers.csv 담당과목."""
+    name = load_elective_subjects().get((str(code), str(teacher)))
+    if name:
+        return name
+    t = load_teachers()
+    row = t[t["교사명"] == teacher]
+    return str(row.iloc[0]["담당과목"]) if not row.empty else ""
+
+
+@st.cache_data(ttl=60)
 def load_teacher_timetable():
     """교사별 시간표 (교사명,요일,교시,과목,교실위치,층) — 선택과목 포함 전체 수업."""
     df = pd.read_csv(os.path.join(DATA_DIR, "teacher_timetable.csv"))
