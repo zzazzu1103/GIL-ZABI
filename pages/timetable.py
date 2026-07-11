@@ -166,24 +166,38 @@ def _render_pivot(df, sel_class, days):
             return f"{row['과목']}\n(선생님 미선택)"
         return f"{row['과목']}\n{row['교사명']}\n{row['교실위치']}"
 
-    sub["내용"] = sub.apply(_cell, axis=1)
-    pivot = sub.pivot_table(index="교시", columns="요일", values="내용", aggfunc="first")
-    ordered_days = [d for d in days if d in pivot.columns]
-    pivot = pivot.reindex(columns=ordered_days)
-    pivot.index = [f"{i}교시" for i in pivot.index]
+    # 배포 서버(py3.14)에서 st.dataframe 의 네이티브 직렬화가 프로세스를
+    # 죽이는 문제가 있어 순수 HTML 표로 렌더링한다.
+    grid = {}   # {교시: {요일: 내용}}
+    for _, row in sub.iterrows():
+        grid.setdefault(int(row["교시"]), {})[row["요일"]] = _cell(row)
+    periods = sorted(grid)
+    ordered_days = [d for d in days if any(d in g for g in grid.values())]
 
-    def style_cell(val):
-        if not isinstance(val, str):
-            return "background:#F5F0E8; color:#555;"
-        return "background:#fff; color:#3D3929; white-space:pre-line; font-size:0.85rem;"
+    th = "padding:10px 8px; background:#F5F0E8; color:#7D6B2E; font-weight:700; border:1px solid #E0D8CC;"
+    td = "padding:10px 8px; border:1px solid #E0D8CC; font-size:0.85rem; color:#3D3929; text-align:center; vertical-align:middle;"
 
-    styler = pivot.fillna("—").style
-    # pandas 2.1+ 에서 Styler.applymap 이 map 으로 바뀜 (3.0에서 applymap 제거)
-    style_fn = styler.map if hasattr(styler, "map") else styler.applymap
-    st.dataframe(
-        style_fn(style_cell),
-        use_container_width=True,
-        height=320,
+    rows_html = []
+    for p in periods:
+        cells = []
+        for d in ordered_days:
+            val = grid[p].get(d)
+            if val:
+                content = "<br>".join(val.split("\n"))
+                cells.append(f'<td style="{td} background:#fff;">{content}</td>')
+            else:
+                cells.append(f'<td style="{td} background:#F5F0E8; color:#C9BFA9;">—</td>')
+        rows_html.append(
+            f'<tr><th style="{th}">{p}교시</th>{"".join(cells)}</tr>'
+        )
+
+    head = "".join(f'<th style="{th}">{d}</th>' for d in ordered_days)
+    st.markdown(
+        f'<div style="overflow-x:auto;">'
+        f'<table style="width:100%; border-collapse:collapse; background:#fff;">'
+        f'<thead><tr><th style="{th}"></th>{head}</tr></thead>'
+        f'<tbody>{"".join(rows_html)}</tbody></table></div>',
+        unsafe_allow_html=True,
     )
 
 

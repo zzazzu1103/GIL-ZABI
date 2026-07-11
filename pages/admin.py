@@ -25,6 +25,28 @@ except Exception:
     pass
 
 
+def _render_df_html(df: pd.DataFrame, max_height: int = 420):
+    """읽기 전용 표를 HTML로 렌더링.
+
+    st.dataframe 의 네이티브(pyarrow) 직렬화가 배포 서버(py3.14)에서
+    프로세스를 죽이는 문제가 있어 pyarrow 를 타지 않는 경로를 사용한다.
+    """
+    th = ("padding:8px 10px; background:#F5F0E8; color:#7D6B2E; font-weight:700;"
+          "border:1px solid #E0D8CC; position:sticky; top:0;")
+    td = "padding:7px 10px; border:1px solid #E0D8CC; font-size:0.85rem; color:#3D3929;"
+    head = "".join(f'<th style="{th}">{c}</th>' for c in df.columns)
+    body = "".join(
+        "<tr>" + "".join(f'<td style="{td}">{v}</td>' for v in row) + "</tr>"
+        for row in df.astype(str).itertuples(index=False)
+    )
+    st.markdown(
+        f'<div style="overflow:auto; max-height:{max_height}px; border:1px solid #E0D8CC; border-radius:8px;">'
+        f'<table style="width:100%; border-collapse:collapse; background:#fff;">'
+        f'<thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>',
+        unsafe_allow_html=True,
+    )
+
+
 def _check_password() -> bool:
     """비밀번호 확인. secrets.toml 없으면 개발 모드로 통과."""
     try:
@@ -122,7 +144,7 @@ def show():
                     st.info("변경 사항이 없습니다.")
         else:
             # 로컬 모드: 읽기 전용 표시 + CSV 직접 수정 안내
-            st.dataframe(view.reset_index(drop=True), use_container_width=True)
+            _render_df_html(view.reset_index(drop=True))
             st.info(
                 "로컬 CSV 수정은 `data/timetable.csv` 파일을 직접 편집하거나 "
                 "아래 '행 추가' 탭을 이용하세요."
@@ -177,5 +199,5 @@ def show():
             file_name="timetable.csv",
             mime="text/csv",
         )
-        st.markdown(f"총 **{len(df)}행** 데이터")
-        st.dataframe(df.head(20), use_container_width=True)
+        st.markdown(f"총 **{len(df)}행** 데이터 (아래는 처음 20행)")
+        _render_df_html(df.head(20))
