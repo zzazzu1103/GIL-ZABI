@@ -72,12 +72,33 @@ def show():
         st.markdown("<br>", unsafe_allow_html=True)
         show_hl = st.checkbox("현재/다음 교시 교실 강조", value=True)
 
+    # ── 기준 시간: 기본은 '지금', 주말·방과후에는 요일·교시를 직접 선택 ──
+    days = ["월", "화", "수", "목", "금"]
+    custom_hint = "" if cur_day and cur_period else " — 지금은 수업 시간이 아니에요"
+    with st.expander(f"⏰ 다른 시간의 수업 위치 보기{custom_hint}",
+                     expanded=not (cur_day and (cur_period or nxt_period))):
+        use_custom = st.checkbox("요일·교시 직접 선택", value=False, key="map_custom_time")
+        c1, c2 = st.columns(2)
+        with c1:
+            day_idx = days.index(cur_day) if cur_day in days else 0
+            custom_day = st.selectbox("요일", days, index=day_idx, key="map_custom_day")
+        with c2:
+            custom_period = st.selectbox(
+                "교시", list(PERIODS),
+                format_func=lambda p: f"{p}교시 ({PERIODS[p][0].strftime('%H:%M')}~)",
+                key="map_custom_period")
+
+    if use_custom:
+        cur_day, cur_period = custom_day, custom_period
+        nxt_period = custom_period + 1 if custom_period + 1 in PERIODS else None
+
     entries = _class_highlight_entries(timetable_df, sel_class, cur_day,
                                        cur_period, nxt_period) if show_hl else []
 
-    # 반이 바뀌면 현재(없으면 다음) 수업이 있는 층으로 자동 전환
-    if st.session_state.get("_map_last_class") != sel_class:
-        st.session_state["_map_last_class"] = sel_class
+    # 반·시간이 바뀌면 현재(없으면 다음) 수업이 있는 층으로 자동 전환
+    view_key = (sel_class, cur_day, cur_period, nxt_period)
+    if st.session_state.get("_map_last_view") != view_key:
+        st.session_state["_map_last_view"] = view_key
         located = [e for e in entries if e["floor"] is not None]
         if located:
             st.session_state["map_floor_sel"] = located[0]["floor"]
@@ -101,10 +122,12 @@ def show():
     # ── 현재/다음 수업 정보 패널 ──────────────────────────────────
     if sel_class != "선택 안 함":
         if not cur_day:
-            st.info("오늘은 수업이 없는 날이에요.")
+            st.info("오늘은 수업이 없는 날이에요. 위의 '⏰ 다른 시간의 수업 위치 보기'에서 요일·교시를 선택해보세요.")
         elif entries:
             st.markdown("#### 📍 내 수업 위치")
-            if cur_period is None:
+            if use_custom:
+                st.caption(f"🕐 {cur_day}요일 {cur_period}교시 기준으로 표시 중이에요.")
+            elif cur_period is None:
                 st.caption("☕ 지금은 쉬는 시간이에요 — 다음 교시 위치를 확인하세요.")
             for e in entries:
                 s, t = PERIODS.get(e["period"], (None, None))
@@ -157,7 +180,8 @@ def show():
                 </div>
                 """, unsafe_allow_html=True)
         else:
-            st.info("지금 시간에는 표시할 수업이 없어요.")
+            st.info("지금 시간에는 표시할 수업이 없어요. "
+                    "위의 '⏰ 다른 시간의 수업 위치 보기'에서 요일·교시를 선택해보세요.")
 
     # ── 범례 ──────────────────────────────────────────────────────
     st.markdown("---")

@@ -216,7 +216,9 @@ def show():
                 f'</div>', unsafe_allow_html=True)
             sel_class = my_class
         else:
-            sel_class = st.selectbox("🏫 반 선택", classes)
+            # 개인 설정에 저장된 내 반을 기본값으로
+            default_idx = classes.index(my_class) if my_class in classes else 0
+            sel_class = st.selectbox("🏫 반 선택", classes, index=default_idx)
     with col2:
         default_day = cur_day if cur_day in days else "월"
         sel_day = st.selectbox("📆 요일 선택", days, index=days.index(default_day))

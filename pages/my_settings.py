@@ -65,17 +65,25 @@ def _get_tangu_options(timetable_df, my_class, tangu_code):
         rows = ttt[ttt["과목"] == tangu_code][["교사명", "교실위치"]].drop_duplicates()
     except FileNotFoundError:
         rows = in_class[["교사명", "교실위치"]].drop_duplicates()
+
+    # 교사명 → 실제 담당과목 (예: 강다솜 → 생명)
+    teachers_df = load_teachers()
+    subject_of = dict(zip(teachers_df["교사명"], teachers_df["담당과목"]))
+
     opts = []
     for _, r in rows.iterrows():
         room = str(r["교실위치"])
         floor = find_room_floor(room)
         floor_str = f" ({floor}층)" if floor else ""
+        subject = subject_of.get(r["교사명"], "")
+        subject_str = f"{subject} · " if subject else ""
         opts.append({
             "교사명": r["교사명"],
             "교실위치": room,
-            "label": f"{r['교사명']} 선생님 · {room}호{floor_str}",
+            "과목": subject,
+            "label": f"{subject_str}{r['교사명']} 선생님 · {room}호{floor_str}",
         })
-    return sorted(opts, key=lambda o: o["교사명"])
+    return sorted(opts, key=lambda o: (o["과목"], o["교사명"]))
 
 
 def show():

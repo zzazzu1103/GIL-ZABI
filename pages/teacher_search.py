@@ -37,6 +37,8 @@ def show():
         st.markdown("<br>", unsafe_allow_html=True)
         use_dropdown = st.checkbox("목록에서 선택", value=False)
 
+    picked = st.session_state.get("ts_selected")
+
     if use_dropdown:
         selected_teacher = st.selectbox("선생님 선택", teacher_names)
     else:
@@ -47,12 +49,18 @@ def show():
                 st.warning(f"'{query}'와 일치하는 선생님이 없습니다.")
                 return
             selected_teacher = st.selectbox("검색 결과", matches)
+        elif picked and picked in teacher_names:
+            # 전체 목록에서 클릭해서 선택한 경우
+            selected_teacher = picked
+            if st.button("← 전체 목록으로 돌아가기", key="ts_back"):
+                st.session_state.pop("ts_selected", None)
+                st.rerun()
         else:
             st.markdown("""
             <div class="card" style="text-align:center; padding:40px;">
                 <div style="font-size:3rem; margin-bottom:12px;">🔍</div>
                 <div style="font-size:1.1rem; font-weight:600; color:#9E9070;">
-                    선생님 이름을 입력하세요
+                    선생님 이름을 검색하거나 아래 목록에서 선택하세요
                 </div>
                 <div style="font-size:0.85rem; color:#D4C9A8; margin-top:6px;">
                     성함 일부만 입력해도 검색됩니다
@@ -60,19 +68,20 @@ def show():
             </div>
             """, unsafe_allow_html=True)
 
-            # 전체 선생님 목록
+            # 전체 선생님 목록 — 클릭하면 바로 선택
             st.markdown("### 👩‍🏫 전체 선생님 목록")
-            cols = st.columns(2)
-            for i, (_, t) in enumerate(teachers_df.iterrows()):
-                with cols[i % 2]:
-                    st.markdown(f"""
-                    <div class="card" style="padding:14px;">
-                        <div style="font-size:1rem; font-weight:700;">{t['교사명']} 선생님</div>
-                        <div style="color:#9E9070; font-size:0.85rem; margin-top:4px;">
-                            {t['담당과목']} · {t['교무실']}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+            sorted_teachers = teachers_df.sort_values("교사명")
+            cols = st.columns(3)
+            for i, (_, t) in enumerate(sorted_teachers.iterrows()):
+                with cols[i % 3]:
+                    if st.button(
+                        f"{t['교사명']} · {t['담당과목']}",
+                        key=f"tsbtn_{t['교사명']}",
+                        help=str(t["교무실"]),
+                        use_container_width=True,
+                    ):
+                        st.session_state["ts_selected"] = t["교사명"]
+                        st.rerun()
             return
 
     # ── 선택된 선생님 상세 정보 ────────────────────────────────────────────────
