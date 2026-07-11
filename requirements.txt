@@ -1,9 +1,11 @@
-# 배포 서버(Streamlit Cloud)에서 최신 네이티브 휠(pandas 3.x / numpy 2.4 /
-# pyarrow 25 등)이 세그폴트를 일으켜 검증된 안정 버전 범위로 고정.
+# Streamlit Cloud(Python 3.14)에서 streamlit 1.59의 uvicorn 서버가
+# 시작 직후 멈추는 문제가 있어 tornado 기반 1.4x로 고정.
+# pandas/numpy/pyarrow 는 Python 3.14용 휠이 있는 범위로 지정
+# (numpy<2.3, pyarrow<21 은 py3.14 휠이 없어 설치가 실패함).
 streamlit>=1.44,<1.50
 pandas>=2.2,<3.0
-numpy>=2.0,<2.3
-pyarrow>=17,<21
+numpy>=2.0,<3.0
+pyarrow>=17,<26
 requests>=2.31.0
 gspread>=6.0.0
 google-auth>=2.28.0
