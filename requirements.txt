@@ -8,5 +8,6 @@ numpy>=2.0,<3.0
 pyarrow>=17,<26
 requests>=2.31.0
 gspread>=6.0.0
+comcigan>=0.2.0
 google-auth>=2.28.0
 google-auth-oauthlib>=1.2.0

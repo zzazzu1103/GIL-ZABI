@@ -13,7 +13,7 @@ KST = timezone(timedelta(hours=9))
 from utils.helpers import (
     load_timetable, get_current_period, get_next_period,
     get_current_day, get_personalized_timetable, PERIODS, sort_classes,
-    is_unselected_elective,
+    is_unselected_elective, is_elective, elective_subject_name,
 )
 from utils.floorplan import render_map, find_room_floor, room_display_name
 
@@ -164,7 +164,9 @@ def show():
                     <div>
                       <span class="status-badge {badge_cls}">{badge_label}</span>
                       <div style="margin-top:8px;font-size:1.1rem;font-weight:700;">
-                        {e['period']}교시 · {e['subject']}
+                        {e['period']}교시 · {e['subject']}{
+                          ' (' + elective_subject_name(e['subject'], e['teacher']) + ')'
+                          if is_elective(e['subject']) and elective_subject_name(e['subject'], e['teacher']) else ''}
                       </div>
                       <div style="color:#9E9070;font-size:0.85rem;">
                         {e['teacher']} 선생님 · {time_str}

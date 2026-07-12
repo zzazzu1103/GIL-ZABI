@@ -9,7 +9,7 @@ pages/my_settings.py
 import streamlit as st
 from utils.helpers import (
     load_timetable, load_teachers, sort_classes,
-    load_teacher_timetable, ELECTIVE_CODES,
+    load_teacher_timetable, ELECTIVE_CODES, elective_subject_name,
 )
 from utils.floorplan import find_room_floor
 from utils.auth import get_current_user, get_role
@@ -66,16 +66,13 @@ def _get_tangu_options(timetable_df, my_class, tangu_code):
     except FileNotFoundError:
         rows = in_class[["교사명", "교실위치"]].drop_duplicates()
 
-    # 교사명 → 실제 담당과목 (예: 강다솜 → 생명)
-    teachers_df = load_teachers()
-    subject_of = dict(zip(teachers_df["교사명"], teachers_df["담당과목"]))
-
     opts = []
     for _, r in rows.iterrows():
         room = str(r["교실위치"])
         floor = find_room_floor(room)
         floor_str = f" ({floor}층)" if floor else ""
-        subject = subject_of.get(r["교사명"], "")
+        # (코드, 교사) 매핑의 실제 과목명 우선 (예: 탐구D·이지원 → 물리Ⅱ)
+        subject = elective_subject_name(tangu_code, r["교사명"])
         subject_str = f"{subject} · " if subject else ""
         opts.append({
             "교사명": r["교사명"],

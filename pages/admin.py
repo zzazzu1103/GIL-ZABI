@@ -8,6 +8,7 @@ secrets.toml 에 아래 항목을 추가하세요:
 password = "your_secure_password"
 """
 
+import os
 import streamlit as st
 import pandas as pd
 from utils.helpers import load_timetable, load_teachers, DATA_DIR
@@ -23,6 +24,28 @@ try:
         USE_SHEETS = True
 except Exception:
     pass
+
+
+def _render_df_html(df: pd.DataFrame, max_height: int = 420):
+    """읽기 전용 표를 HTML로 렌더링.
+
+    st.dataframe 의 네이티브(pyarrow) 직렬화가 배포 서버(py3.14)에서
+    프로세스를 죽이는 문제가 있어 pyarrow 를 타지 않는 경로를 사용한다.
+    """
+    th = ("padding:8px 10px; background:#F5F0E8; color:#7D6B2E; font-weight:700;"
+          "border:1px solid #E0D8CC; position:sticky; top:0;")
+    td = "padding:7px 10px; border:1px solid #E0D8CC; font-size:0.85rem; color:#3D3929;"
+    head = "".join(f'<th style="{th}">{c}</th>' for c in df.columns)
+    body = "".join(
+        "<tr>" + "".join(f'<td style="{td}">{v}</td>' for v in row) + "</tr>"
+        for row in df.astype(str).itertuples(index=False)
+    )
+    st.markdown(
+        f'<div style="overflow:auto; max-height:{max_height}px; border:1px solid #E0D8CC; border-radius:8px;">'
+        f'<table style="width:100%; border-collapse:collapse; background:#fff;">'
+        f'<thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>',
+        unsafe_allow_html=True,
+    )
 
 
 def _check_password() -> bool:
@@ -66,7 +89,8 @@ def show():
         st.warning("📁 로컬 CSV 모드 (Google Sheets 미연동 — 변경 사항은 재시작 시 초기화됩니다)")
         df = load_timetable()
 
-    tab1, tab2, tab3 = st.tabs(["📋 시간표 조회/수정", "➕ 행 추가", "📤 CSV 내보내기"])
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["📋 시간표 조회/수정", "➕ 행 추가", "📤 CSV 내보내기", "🔄 컴시간 동기화"])
 
     # ── 탭1: 조회 및 수정 ──────────────────────────────────────────────────
     with tab1:
@@ -122,7 +146,7 @@ def show():
                     st.info("변경 사항이 없습니다.")
         else:
             # 로컬 모드: 읽기 전용 표시 + CSV 직접 수정 안내
-            st.dataframe(view.reset_index(drop=True), use_container_width=True)
+            _render_df_html(view.reset_index(drop=True))
             st.info(
                 "로컬 CSV 수정은 `data/timetable.csv` 파일을 직접 편집하거나 "
                 "아래 '행 추가' 탭을 이용하세요."
@@ -177,5 +201,55 @@ def show():
             file_name="timetable.csv",
             mime="text/csv",
         )
-        st.markdown(f"총 **{len(df)}행** 데이터")
-        st.dataframe(df.head(20), use_container_width=True)
+        st.markdown(f"총 **{len(df)}행** 데이터 (아래는 처음 20행)")
+        _render_df_html(df.head(20))
+
+    # ── 탭4: 컴시간알리미 동기화 ──────────────────────────────────────────
+    with tab4:
+        st.markdown("#### 컴시간알리미에서 최신 시간표 가져오기")
+        st.caption(
+            "컴시간(비공식 API)에서 학급별 시간표를 받아옵니다. "
+            "교실 위치는 교사 시간표와 홈룸 규칙으로 자동 결합돼요. "
+            "가져온 뒤 내용을 확인하고 적용하세요."
+        )
+        school_name = st.text_input("학교명", value="저현고등학교", key="comci_school")
+
+        if st.button("📡 컴시간에서 가져오기", key="comci_fetch"):
+            try:
+                from utils.comcigan_sync import fetch_comcigan_timetable
+                with st.spinner("컴시간 서버에서 시간표를 받아오는 중..."):
+                    fetched = fetch_comcigan_timetable(school_name)
+                st.session_state["comci_preview"] = fetched
+                st.success(f"✅ {len(fetched)}행을 받아왔어요.")
+            except ImportError:
+                st.error("`comcigan` 패키지가 설치되어 있지 않아요. requirements.txt 반영 후 재배포하세요.")
+            except Exception as e:
+                st.error(f"가져오기 실패: {type(e).__name__} — {e}")
+                st.info("컴시간은 비공식 서비스라 접속이 막히거나 구조가 바뀌면 실패할 수 있어요. 기존 시간표는 그대로 유지됩니다.")
+
+        preview = st.session_state.get("comci_preview")
+        if preview is not None:
+            no_room = int((preview["교실위치"] == "").sum())
+            unknown_teacher = int((~preview["교사명"].isin(load_teachers()["교사명"])).sum())
+            c1, c2, c3 = st.columns(3)
+            with c1: st.metric("받아온 행", f"{len(preview)}행")
+            with c2: st.metric("교실 미확정", f"{no_room}행")
+            with c3: st.metric("교사명 미매칭", f"{unknown_teacher}행")
+            _render_df_html(preview.head(30))
+
+            st.download_button(
+                "📥 받아온 시간표 CSV 다운로드 (저장소 반영용)",
+                data=preview.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig"),
+                file_name="timetable.csv",
+                mime="text/csv",
+            )
+            st.warning(
+                "⚠️ 아래 '적용'은 서버의 timetable.csv 를 덮어쓰지만, "
+                "Streamlit Cloud 는 재배포 시 파일이 초기화돼요. "
+                "영구 반영하려면 위 CSV를 내려받아 GitHub 의 data/timetable.csv 에 커밋하세요."
+            )
+            if st.button("✅ 이 시간표를 지금 서버에 적용", key="comci_apply", type="primary"):
+                csv_path = os.path.join(DATA_DIR, "timetable.csv")
+                preview.to_csv(csv_path, index=False, encoding="utf-8-sig")
+                st.cache_data.clear()
+                st.success("✅ 적용 완료! 시간표·지도에 바로 반영됩니다.")
