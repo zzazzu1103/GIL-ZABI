@@ -8,6 +8,7 @@ secrets.toml 에 아래 항목을 추가하세요:
 password = "your_secure_password"
 """
 
+import os
 import streamlit as st
 import pandas as pd
 from utils.helpers import load_timetable, load_teachers, DATA_DIR
@@ -88,7 +89,8 @@ def show():
         st.warning("📁 로컬 CSV 모드 (Google Sheets 미연동 — 변경 사항은 재시작 시 초기화됩니다)")
         df = load_timetable()
 
-    tab1, tab2, tab3 = st.tabs(["📋 시간표 조회/수정", "➕ 행 추가", "📤 CSV 내보내기"])
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["📋 시간표 조회/수정", "➕ 행 추가", "📤 CSV 내보내기", "🔄 컴시간 동기화"])
 
     # ── 탭1: 조회 및 수정 ──────────────────────────────────────────────────
     with tab1:
@@ -201,3 +203,53 @@ def show():
         )
         st.markdown(f"총 **{len(df)}행** 데이터 (아래는 처음 20행)")
         _render_df_html(df.head(20))
+
+    # ── 탭4: 컴시간알리미 동기화 ──────────────────────────────────────────
+    with tab4:
+        st.markdown("#### 컴시간알리미에서 최신 시간표 가져오기")
+        st.caption(
+            "컴시간(비공식 API)에서 학급별 시간표를 받아옵니다. "
+            "교실 위치는 교사 시간표와 홈룸 규칙으로 자동 결합돼요. "
+            "가져온 뒤 내용을 확인하고 적용하세요."
+        )
+        school_name = st.text_input("학교명", value="저현고등학교", key="comci_school")
+
+        if st.button("📡 컴시간에서 가져오기", key="comci_fetch"):
+            try:
+                from utils.comcigan_sync import fetch_comcigan_timetable
+                with st.spinner("컴시간 서버에서 시간표를 받아오는 중..."):
+                    fetched = fetch_comcigan_timetable(school_name)
+                st.session_state["comci_preview"] = fetched
+                st.success(f"✅ {len(fetched)}행을 받아왔어요.")
+            except ImportError:
+                st.error("`comcigan` 패키지가 설치되어 있지 않아요. requirements.txt 반영 후 재배포하세요.")
+            except Exception as e:
+                st.error(f"가져오기 실패: {type(e).__name__} — {e}")
+                st.info("컴시간은 비공식 서비스라 접속이 막히거나 구조가 바뀌면 실패할 수 있어요. 기존 시간표는 그대로 유지됩니다.")
+
+        preview = st.session_state.get("comci_preview")
+        if preview is not None:
+            no_room = int((preview["교실위치"] == "").sum())
+            unknown_teacher = int((~preview["교사명"].isin(load_teachers()["교사명"])).sum())
+            c1, c2, c3 = st.columns(3)
+            with c1: st.metric("받아온 행", f"{len(preview)}행")
+            with c2: st.metric("교실 미확정", f"{no_room}행")
+            with c3: st.metric("교사명 미매칭", f"{unknown_teacher}행")
+            _render_df_html(preview.head(30))
+
+            st.download_button(
+                "📥 받아온 시간표 CSV 다운로드 (저장소 반영용)",
+                data=preview.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig"),
+                file_name="timetable.csv",
+                mime="text/csv",
+            )
+            st.warning(
+                "⚠️ 아래 '적용'은 서버의 timetable.csv 를 덮어쓰지만, "
+                "Streamlit Cloud 는 재배포 시 파일이 초기화돼요. "
+                "영구 반영하려면 위 CSV를 내려받아 GitHub 의 data/timetable.csv 에 커밋하세요."
+            )
+            if st.button("✅ 이 시간표를 지금 서버에 적용", key="comci_apply", type="primary"):
+                csv_path = os.path.join(DATA_DIR, "timetable.csv")
+                preview.to_csv(csv_path, index=False, encoding="utf-8-sig")
+                st.cache_data.clear()
+                st.success("✅ 적용 완료! 시간표·지도에 바로 반영됩니다.")
