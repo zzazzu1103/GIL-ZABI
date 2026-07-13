@@ -169,45 +169,53 @@ def _render_teacher_day_cards(teacher: str, sub: pd.DataFrame, sel_day: str,
         floor_color = floor_colors.get(int(row["층"]), "#9E9070")
         room_label = room_display_name(str(row["교실위치"]))
 
-        # 빈 줄이 HTML 블록 파싱을 깨는 문제(마크다운 렌더러가 들여쓰기된
-        # 뒷부분을 코드블록으로 오인)를 피하려고 한 줄짜리 문자열로 조립한다.
-        st.markdown(
-            f'<div class="card {card_cls}">'
-            f'<div style="display:flex; align-items:center; gap:16px;">'
-            f'<div style="min-width:56px; text-align:center; background:#FAF7F2; '
-            f'border-radius:10px; padding:10px 0;">'
-            f'<div style="font-size:1.4rem; font-weight:900; color:#7D6B2E;">{period}</div>'
-            f'<div style="font-size:0.65rem; color:#9E9070;">교시</div></div>'
-            f'<div style="flex:1;">'
-            f'<div style="font-size:0.78rem; color:#9E9070; margin-bottom:4px;">{time_str}</div>'
-            f'<div style="font-size:1.15rem; font-weight:700; color:#3D3929;">'
-            f'{row["과목"]}'
-            f'<span style="font-size:0.85rem; font-weight:400; color:#9E9070; margin-left:6px;">'
-            f'{room_label}</span></div></div>'
-            f'<div style="text-align:right; min-width:120px;">'
-            f'<div style="font-size:1rem; font-weight:700; color:{floor_color};">📍 {row["교실위치"]}</div>'
-            f'<div style="font-size:0.78rem; color:#9E9070; margin:2px 0 6px;">{row["층"]}층</div>'
-            f'<span class="status-badge {badge_cls}">{badge_label}</span>'
-            f'</div></div></div>',
-            unsafe_allow_html=True,
-        )
+        accent = {"current": "#D97706", "next": "#059669"}.get(status)
+        tint   = {"current": "#FFFBF0", "next": "#F6FFFA"}.get(status, "#fff")
 
-        with st.popover("✏️ 교실 위치 수정"):
-            st.caption(f"{period}교시 · {row['과목']} 교실을 지도에 있는 장소 중에서 바로 바꿀 수 있어요.")
-            options = _room_options()
-            option_ids = [rid for rid, _ in options]
-            cur_room = str(row["교실위치"])
-            default_idx = option_ids.index(cur_room) if cur_room in option_ids else 0
-            chosen_label = st.selectbox(
-                "교실 선택", [label for _, label in options],
-                index=default_idx, key=f"room_edit_{sel_day}_{period}",
+        # st.popover 는 st.markdown 의 HTML 안에 넣을 수 없는 실제 위젯이라,
+        # st.container(border=True) 로 만든 하나의 박스 안에 정보 + 수정
+        # 버튼을 함께 넣어 '교시 박스 안'에 있는 것처럼 보이게 한다.
+        with st.container(border=True):
+            # 빈 줄이 HTML 블록 파싱을 깨는 문제(마크다운 렌더러가 들여쓰기된
+            # 뒷부분을 코드블록으로 오인)를 피하려고 한 줄짜리 문자열로 조립한다.
+            st.markdown(
+                f'<div style="background:{tint}; border-left:3px solid {accent or "transparent"}; '
+                f'border-radius:6px; padding:10px 14px; margin:-4px -4px 8px -4px;">'
+                f'<div style="display:flex; align-items:center; gap:16px;">'
+                f'<div style="min-width:56px; text-align:center; background:#FAF7F2; '
+                f'border-radius:10px; padding:10px 0;">'
+                f'<div style="font-size:1.4rem; font-weight:900; color:#7D6B2E;">{period}</div>'
+                f'<div style="font-size:0.65rem; color:#9E9070;">교시</div></div>'
+                f'<div style="flex:1;">'
+                f'<div style="font-size:0.78rem; color:#9E9070; margin-bottom:4px;">{time_str}</div>'
+                f'<div style="font-size:1.15rem; font-weight:700; color:#3D3929;">'
+                f'{row["과목"]}'
+                f'<span style="font-size:0.85rem; font-weight:400; color:#9E9070; margin-left:6px;">'
+                f'{room_label}</span></div></div>'
+                f'<div style="text-align:right; min-width:120px;">'
+                f'<div style="font-size:1rem; font-weight:700; color:{floor_color};">📍 {row["교실위치"]}</div>'
+                f'<div style="font-size:0.78rem; color:#9E9070; margin:2px 0 6px;">{row["층"]}층</div>'
+                f'<span class="status-badge {badge_cls}">{badge_label}</span>'
+                f'</div></div></div>',
+                unsafe_allow_html=True,
             )
-            new_room = option_ids[[label for _, label in options].index(chosen_label)]
-            if st.button("저장", key=f"room_save_{sel_day}_{period}"):
-                save_room_override(teacher, sel_day, period, new_room)
-                load_timetable.clear()
-                load_teacher_timetable.clear()
-                st.success("✅ 교실 위치를 수정했어요. (지도·시간표에 바로 반영돼요)")
+
+            with st.popover("✏️ 교실 위치 수정", use_container_width=True):
+                st.caption(f"{period}교시 · {row['과목']} 교실을 지도에 있는 장소 중에서 바로 바꿀 수 있어요.")
+                options = _room_options()
+                option_ids = [rid for rid, _ in options]
+                cur_room = str(row["교실위치"])
+                default_idx = option_ids.index(cur_room) if cur_room in option_ids else 0
+                chosen_label = st.selectbox(
+                    "교실 선택", [label for _, label in options],
+                    index=default_idx, key=f"room_edit_{sel_day}_{period}",
+                )
+                new_room = option_ids[[label for _, label in options].index(chosen_label)]
+                if st.button("저장", key=f"room_save_{sel_day}_{period}"):
+                    save_room_override(teacher, sel_day, period, new_room)
+                    load_timetable.clear()
+                    load_teacher_timetable.clear()
+                    st.success("✅ 교실 위치를 수정했어요. (지도·시간표에 바로 반영돼요)")
 
 
 def _render_teacher_pivot(ttt, teacher, days):

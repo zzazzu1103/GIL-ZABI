@@ -334,16 +334,13 @@ def show():
         st.markdown("### 👩‍🏫 선생님 설정")
         st.caption(
             "본인 성함을 선택하면 홈 화면에서 '내 시간표'로 본인 수업 일정을 바로 볼 수 있어요. "
-            "담당 과목·반은 관리자 페이지에서 빠르게 접근하는 용도예요."
+            "담당 반은 관리자 페이지에서 빠르게 접근하는 용도예요."
         )
 
         teacher_names = sorted(teachers_df["교사명"].tolist())
         saved_teacher_name = saved.get("my_teacher_name", "")
-        all_subjects = sorted(df["과목"].unique().tolist())
         all_classes  = sort_classes(df["반"].unique().tolist())
-
-        saved_subjects = saved.get("my_subjects", [])
-        saved_classes  = saved.get("my_classes",  [])
+        saved_classes = saved.get("my_classes", [])
 
         with st.form("teacher_prefs_form", border=False):
             name_options = ["— 선택 안 함 —"] + teacher_names
@@ -355,11 +352,6 @@ def show():
                 "본인 성함", name_options, index=name_default, key="set_teacher_name"
             )
 
-            sel_subjects = st.multiselect(
-                "담당 과목 선택", all_subjects,
-                default=[s for s in saved_subjects if s in all_subjects],
-                key="set_subjects"
-            )
             sel_classes_t = st.multiselect(
                 "담당 반 선택", all_classes,
                 default=[c for c in saved_classes if c in all_classes],
@@ -368,13 +360,11 @@ def show():
 
             if st.form_submit_button("💾 선생님 설정 저장", type="primary"):
                 saved["my_teacher_name"] = "" if sel_teacher_name == "— 선택 안 함 —" else sel_teacher_name
-                saved["my_subjects"] = sel_subjects
                 saved["my_classes"]  = sel_classes_t
                 save_user_settings(email, saved)
                 st.session_state["my_teacher_name"] = saved["my_teacher_name"]
-                st.session_state["my_subjects"] = sel_subjects
                 st.session_state["my_classes"]  = sel_classes_t
-                st.success(f"✅ 저장됐어요! (담당 과목 {len(sel_subjects)}개, 반 {len(sel_classes_t)}개)")
+                st.success(f"✅ 저장됐어요! (담당 반 {len(sel_classes_t)}개)")
 
     # ── 설정 초기화 ────────────────────────────────────────────────────────
     st.markdown("---")
