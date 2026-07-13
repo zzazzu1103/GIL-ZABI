@@ -12,6 +12,7 @@ from utils.helpers import (
     subject_color, day_label,
 )
 from utils.floorplan import room_display_name
+from utils.room_overrides import save_room_override
 
 
 def _subject_display(subject, teacher) -> str:
@@ -111,13 +112,16 @@ def _render_day_cards(sub: pd.DataFrame, sel_day: str, cur_day, cur_period, nxt_
         """, unsafe_allow_html=True)
 
 
-def _render_teacher_day_cards(sub: pd.DataFrame, sel_day: str, cur_day, cur_period, nxt_period, now):
-    """교사 본인 시간표 카드 (반/교실 표시). _render_day_cards 와 같은 형태지만
-    담당 반을 교실 코드로부터 유추해 표시한다(교사 시간표엔 반 컬럼이 없음)."""
-    for _, row in sub.iterrows():
-        period = int(row["교시"])
-        s, e   = PERIODS.get(period, (None, None))
+def _render_teacher_day_cards(teacher: str, sub: pd.DataFrame, sel_day: str,
+                              cur_day, cur_period, nxt_period, now):
+    """교사 본인 시간표 카드 (반/교실 표시). 수업이 없는 교시는 '공강'으로
+    표시하고(숨기지 않음), 수업이 있는 교시는 교실 위치를 바로 수정할 수 있다."""
+    by_period = {int(r["교시"]): r for _, r in sub.iterrows()}
+
+    for period in sorted(PERIODS):
+        s, e = PERIODS.get(period, (None, None))
         time_str = f"{s.strftime('%H:%M')} ~ {e.strftime('%H:%M')}" if s else ""
+        row = by_period.get(period)
 
         status = "upcoming"
         card_cls = ""
@@ -131,6 +135,25 @@ def _render_teacher_day_cards(sub: pd.DataFrame, sel_day: str, cur_day, cur_peri
                 card_cls, badge_cls, badge_label = "card-next", "badge-next", "🟢 다음 교시"
             elif status == "done":
                 badge_cls, badge_label = "badge-done", "⚫ 완료"
+
+        if row is None:
+            st.markdown(
+                f'<div class="card {card_cls}">'
+                f'<div style="display:flex; align-items:center; gap:16px;">'
+                f'<div style="min-width:56px; text-align:center; background:#FAF7F2; '
+                f'border-radius:10px; padding:10px 0;">'
+                f'<div style="font-size:1.4rem; font-weight:900; color:#7D6B2E;">{period}</div>'
+                f'<div style="font-size:0.65rem; color:#9E9070;">교시</div></div>'
+                f'<div style="flex:1;">'
+                f'<div style="font-size:0.78rem; color:#9E9070; margin-bottom:4px;">{time_str}</div>'
+                f'<div style="font-size:1.05rem; font-weight:700; color:#C9BFA9;">☕ 공강</div>'
+                f'</div>'
+                f'<div style="text-align:right; min-width:120px;">'
+                f'<span class="status-badge {badge_cls}">{badge_label}</span>'
+                f'</div></div></div>',
+                unsafe_allow_html=True,
+            )
+            continue
 
         floor_colors = {1: "#2E6B7D", 2: "#6B2E7D", 3: "#FF7B72", 4: "#C2852A", 5: "#059669"}
         floor_color = floor_colors.get(int(row["층"]), "#9E9070")
@@ -158,6 +181,18 @@ def _render_teacher_day_cards(sub: pd.DataFrame, sel_day: str, cur_day, cur_peri
             f'</div></div></div>',
             unsafe_allow_html=True,
         )
+
+        with st.popover("✏️ 교실 위치 수정"):
+            st.caption(f"{period}교시 · {row['과목']} 교실을 바로 바꿀 수 있어요.")
+            new_room = st.text_input(
+                "교실 코드", value=str(row["교실위치"]), key=f"room_edit_{sel_day}_{period}",
+                help="예: 205, 생물실험실 등 — 지도의 교실 코드와 같아야 위치가 반영돼요.",
+            )
+            if st.button("저장", key=f"room_save_{sel_day}_{period}"):
+                save_room_override(teacher, sel_day, period, new_room.strip())
+                load_timetable.clear()
+                load_teacher_timetable.clear()
+                st.success("✅ 교실 위치를 수정했어요. (지도·시간표에 바로 반영돼요)")
 
 
 def _render_teacher_pivot(ttt, teacher, days):
@@ -352,12 +387,8 @@ def show_body():
                 return
 
             sub = ttt[(ttt["교사명"] == my_teacher_name) & (ttt["요일"] == sel_day)].sort_values("교시")
-            if sub.empty:
-                st.info(f"{day_label(sel_day)}요일에는 수업이 없어요.")
-                return
-
             st.markdown(f"### {my_teacher_name} 선생님 · {day_label(sel_day)}요일 시간표")
-            _render_teacher_day_cards(sub, sel_day, cur_day, cur_period, nxt_period, now)
+            _render_teacher_day_cards(my_teacher_name, sub, sel_day, cur_day, cur_period, nxt_period, now)
             return
 
     col1, col2, col3, col4 = st.columns([1.2, 1.2, 2, 1.4])
