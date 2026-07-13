@@ -20,7 +20,7 @@ KST = timezone(timedelta(hours=9))
 # 별도 시트를 쓰고 싶으면 secrets.toml 에 sheets.user_settings_id 를 추가하면 된다.
 SHEET_NAME = "user_settings"
 _HEADER = ["email", "my_class", "tangu_map", "my_subjects",
-           "my_classes", "updated_at", "prefs"]
+           "my_classes", "updated_at", "prefs", "my_teacher_name"]
 
 SETTINGS_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "data", "user_settings.json"
@@ -32,6 +32,7 @@ DEFAULT_SETTINGS = {
     "my_classes":  [],
     "tangu_map":   {},
     "prefs":       {},   # 표시 설정: subject_colors, show_dates, color_map
+    "my_teacher_name": "",   # 교사 본인 성함 (홈 화면 '내 시간표'용)
 }
 
 
@@ -95,13 +96,15 @@ def load_user_settings(email: str) -> dict:
                         return default
 
                 # 컬럼: A=email, B=my_class, C=tangu_map, D=my_subjects,
-                #       E=my_classes, F=updated_at, G=prefs(표시 설정)
+                #       E=my_classes, F=updated_at, G=prefs(표시 설정),
+                #       H=my_teacher_name(교사 본인 성함)
                 return {
                     "my_class":    row[1] if len(row) > 1 else "",
                     "tangu_map":   _safe_json(row[2] if len(row) > 2 else "", {}),
                     "my_subjects": _safe_json(row[3] if len(row) > 3 else "", []),
                     "my_classes":  _safe_json(row[4] if len(row) > 4 else "", []),
                     "prefs":       _safe_json(row[6] if len(row) > 6 else "", {}),
+                    "my_teacher_name": row[7] if len(row) > 7 else "",
                 }
         except Exception:
             pass
@@ -123,6 +126,7 @@ def save_user_settings(email: str, settings: dict):
         json.dumps(settings.get("my_classes", []),  ensure_ascii=False),
         now_str,
         json.dumps(settings.get("prefs", {}),       ensure_ascii=False),
+        settings.get("my_teacher_name", ""),
     ]
 
     ws = _get_worksheet(readonly=False)
@@ -130,7 +134,7 @@ def save_user_settings(email: str, settings: dict):
         try:
             row_num = _find_row(ws, email)
             if row_num:
-                ws.update(f"A{row_num}:G{row_num}", [row_data])
+                ws.update(f"A{row_num}:H{row_num}", [row_data])
             else:
                 ws.append_row(row_data, value_input_option="USER_ENTERED")
             return  # 시트 저장 성공
@@ -154,3 +158,5 @@ def apply_user_settings_to_session(email: str):
         st.session_state["my_classes"] = settings["my_classes"]
     if settings.get("prefs"):
         st.session_state["prefs"] = settings["prefs"]
+    if settings.get("my_teacher_name"):
+        st.session_state["my_teacher_name"] = settings["my_teacher_name"]

@@ -326,7 +326,7 @@ def logout():
         _delete_session_token(sid)
     for key in ["user", "_processed_code", "_sid",
                 "my_class", "tangu_map", "my_subjects", "my_classes",
-                "_set_grade", "_set_class"]:
+                "my_teacher_name", "prefs", "_set_grade", "_set_class"]:
         st.session_state.pop(key, None)
     st.query_params.clear()
     st.rerun()

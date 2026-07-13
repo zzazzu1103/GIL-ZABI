@@ -219,78 +219,82 @@ def show():
             unsafe_allow_html=True
         )
 
-        # ── 선택과목 개인화 (탐구 A~E, 교과 F~G) ─────────────────────────
-        st.markdown("---")
-        st.markdown("### 🔬 선택과목 설정")
-        st.caption(
-            "탐구·교과 선택과목은 학생마다 담당 선생님과 교실이 달라요. "
-            "내가 듣는 선생님을 선택하면 시간표와 지도에 교실·층이 표시돼요."
-        )
+        # 아래 선택과목·표시 설정은 하나의 폼으로 묶어서, 항목을 이것저것
+        # 바꿀 때마다 매번 전체 페이지가 다시 그려지는(로딩처럼 보이는)
+        # 것을 막고 "설정 저장" 버튼을 눌렀을 때 한 번에만 반영한다.
+        with st.form("student_prefs_form", border=False):
+            # ── 선택과목 개인화 (탐구 A~E, 교과 F~G) ─────────────────
+            st.markdown("---")
+            st.markdown("### 🔬 선택과목 설정")
+            st.caption(
+                "탐구·교과 선택과목은 학생마다 담당 선생님과 교실이 달라요. "
+                "내가 듣는 선생님을 선택하면 시간표와 지도에 교실·층이 표시돼요."
+            )
 
-        saved_tangu = saved.get("tangu_map", {})
-        new_tangu_map = {}
-        tangu_found_any = False
-        NONE_LABEL = "— 선택 안 함 —"
+            saved_tangu = saved.get("tangu_map", {})
+            new_tangu_map = {}
+            tangu_found_any = False
+            NONE_LABEL = "— 선택 안 함 —"
 
-        for tangu_code in sorted(ELECTIVE_CODES):
-            options = _get_tangu_options(df, sel_class, tangu_code)
-            if not options:
-                continue
-            tangu_found_any = True
-            option_labels = [NONE_LABEL] + [o["label"] for o in options]
+            for tangu_code in sorted(ELECTIVE_CODES):
+                options = _get_tangu_options(df, sel_class, tangu_code)
+                if not options:
+                    continue
+                tangu_found_any = True
+                option_labels = [NONE_LABEL] + [o["label"] for o in options]
 
-            # 저장된 선택을 (교사명, 교실위치) 기준으로 복원
-            prev = saved_tangu.get(tangu_code, {})
-            default_idx = 0
-            if prev:
-                for i, o in enumerate(options):
-                    if o["교사명"] == prev.get("교사명"):
-                        default_idx = i + 1
-                        break
+                # 저장된 선택을 (교사명, 교실위치) 기준으로 복원
+                prev = saved_tangu.get(tangu_code, {})
+                default_idx = 0
+                if prev:
+                    for i, o in enumerate(options):
+                        if o["교사명"] == prev.get("교사명"):
+                            default_idx = i + 1
+                            break
 
-            col_l, col_r = st.columns([1, 3])
-            with col_l:
-                st.markdown(
-                    f'<div style="padding:8px 0;font-weight:700;color:#3D3929;">{tangu_code}</div>',
-                    unsafe_allow_html=True
-                )
-            with col_r:
-                chosen_label = st.selectbox(
-                    tangu_code, option_labels,
-                    index=default_idx,
-                    key=f"tangu_{tangu_code}",
-                    label_visibility="collapsed"
-                )
+                col_l, col_r = st.columns([1, 3])
+                with col_l:
+                    st.markdown(
+                        f'<div style="padding:8px 0;font-weight:700;color:#3D3929;">{tangu_code}</div>',
+                        unsafe_allow_html=True
+                    )
+                with col_r:
+                    chosen_label = st.selectbox(
+                        tangu_code, option_labels,
+                        index=default_idx,
+                        key=f"tangu_{tangu_code}",
+                        label_visibility="collapsed"
+                    )
 
-            if chosen_label != NONE_LABEL:
-                chosen = options[option_labels.index(chosen_label) - 1]
-                new_tangu_map[tangu_code] = {
-                    "교사명":   chosen["교사명"],
-                    "교실위치": chosen["교실위치"],
-                }
+                if chosen_label != NONE_LABEL:
+                    chosen = options[option_labels.index(chosen_label) - 1]
+                    new_tangu_map[tangu_code] = {
+                        "교사명":   chosen["교사명"],
+                        "교실위치": chosen["교실위치"],
+                    }
 
-        if not tangu_found_any:
-            st.info(f"{sel_class}반에는 선택과목이 없어요.")
+            if not tangu_found_any:
+                st.info(f"{sel_class}반에는 선택과목이 없어요.")
 
-        # ── 표시 설정 ────────────────────────────────────────────────────
-        st.markdown("---")
-        st.markdown("### 🎨 표시 설정")
+            # ── 표시 설정 ────────────────────────────────────────────
+            st.markdown("---")
+            st.markdown("### 🎨 표시 설정")
 
-        prefs = {**saved.get("prefs", {}), **st.session_state.get("prefs", {})}
-        c1, c2 = st.columns(2)
-        with c1:
-            subject_colors = st.toggle(
-                "과목 색상 표시", value=prefs.get("subject_colors", False),
-                help="시간표에서 과목별로 다른 색상을 표시해요 (기본: 꺼짐)")
-        with c2:
-            show_dates = st.toggle(
-                "요일 옆에 날짜 표시", value=prefs.get("show_dates", True),
-                help="요일 옆에 이번 주 날짜를 표시해요 (예: 월 (7/13))")
+            prefs = {**saved.get("prefs", {}), **st.session_state.get("prefs", {})}
+            c1, c2 = st.columns(2)
+            with c1:
+                subject_colors = st.toggle(
+                    "과목 색상 표시", value=prefs.get("subject_colors", False),
+                    help="시간표에서 과목별로 다른 색상을 표시해요 (기본: 꺼짐)")
+            with c2:
+                show_dates = st.toggle(
+                    "요일 옆에 날짜 표시", value=prefs.get("show_dates", True),
+                    help="요일 옆에 이번 주 날짜를 표시해요 (예: 월 (7/13))")
 
-        color_map = dict(prefs.get("color_map", {}))
-        if subject_colors:
-            with st.expander("🖌️ 과목별 색상 커스텀"):
-                st.caption("시간표에 표시되는 과목 색깔을 바꿀 수 있어요. 기본색으로 되돌리려면 원래 색을 다시 고르세요.")
+            st.caption("🎨 과목 색상 표시를 켜고 저장하면, 아래에 과목별 색상을 고를 수 있는 항목이 나타나요.")
+            color_map = dict(prefs.get("color_map", {}))
+            if subject_colors:
+                st.markdown("**🖌️ 과목별 색상 커스텀**")
                 my_subjects_list = sorted(
                     df[df["반"] == sel_class]["과목"].unique().tolist()
                 ) if sel_class else []
@@ -304,55 +308,73 @@ def show():
                         else:
                             color_map.pop(subj, None)
 
-        new_prefs = {
-            "subject_colors": subject_colors,
-            "show_dates": show_dates,
-            "color_map": color_map,
-        }
+            new_prefs = {
+                "subject_colors": subject_colors,
+                "show_dates": show_dates,
+                "color_map": color_map,
+            }
 
-        # ── 저장 ────────────────────────────────────────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("💾 설정 저장", type="primary", key="save_student", use_container_width=True):
-            saved["my_class"]  = sel_class
-            saved["tangu_map"] = new_tangu_map
-            saved["prefs"]     = new_prefs
-            save_user_settings(email, saved)
-            st.session_state["my_class"]  = sel_class
-            st.session_state["tangu_map"] = new_tangu_map
-            st.session_state["prefs"]     = new_prefs
-            st.success(f"✅ {sel_class}반으로 저장됐어요! 선택과목 {len(new_tangu_map)}개 설정 완료.")
-            st.balloons()
+            # ── 저장 ────────────────────────────────────────────────
+            st.markdown("<br>", unsafe_allow_html=True)
+            submitted = st.form_submit_button("💾 설정 저장", type="primary", use_container_width=True)
+            if submitted:
+                saved["my_class"]  = sel_class
+                saved["tangu_map"] = new_tangu_map
+                saved["prefs"]     = new_prefs
+                save_user_settings(email, saved)
+                st.session_state["my_class"]  = sel_class
+                st.session_state["tangu_map"] = new_tangu_map
+                st.session_state["prefs"]     = new_prefs
+                st.success(f"✅ {sel_class}반으로 저장됐어요! 선택과목 {len(new_tangu_map)}개 설정 완료.")
+                st.balloons()
 
     # ── 교사 설정 ──────────────────────────────────────────────────────────
     if role in ("teacher", "admin"):
         st.markdown("---")
-        st.markdown("### 👩‍🏫 담당 과목 · 반 설정")
-        st.caption("담당 과목과 반을 설정하면 관리자 페이지에서 빠르게 접근할 수 있어요.")
+        st.markdown("### 👩‍🏫 선생님 설정")
+        st.caption(
+            "본인 성함을 선택하면 홈 화면에서 '내 시간표'로 본인 수업 일정을 바로 볼 수 있어요. "
+            "담당 과목·반은 관리자 페이지에서 빠르게 접근하는 용도예요."
+        )
 
+        teacher_names = sorted(teachers_df["교사명"].tolist())
+        saved_teacher_name = saved.get("my_teacher_name", "")
         all_subjects = sorted(df["과목"].unique().tolist())
         all_classes  = sort_classes(df["반"].unique().tolist())
 
         saved_subjects = saved.get("my_subjects", [])
         saved_classes  = saved.get("my_classes",  [])
 
-        sel_subjects = st.multiselect(
-            "담당 과목 선택", all_subjects,
-            default=[s for s in saved_subjects if s in all_subjects],
-            key="set_subjects"
-        )
-        sel_classes_t = st.multiselect(
-            "담당 반 선택", all_classes,
-            default=[c for c in saved_classes if c in all_classes],
-            key="set_classes"
-        )
+        with st.form("teacher_prefs_form", border=False):
+            name_options = ["— 선택 안 함 —"] + teacher_names
+            name_default = (
+                name_options.index(saved_teacher_name)
+                if saved_teacher_name in name_options else 0
+            )
+            sel_teacher_name = st.selectbox(
+                "본인 성함", name_options, index=name_default, key="set_teacher_name"
+            )
 
-        if st.button("💾 담당 설정 저장", type="primary", key="save_teacher"):
-            saved["my_subjects"] = sel_subjects
-            saved["my_classes"]  = sel_classes_t
-            save_user_settings(email, saved)
-            st.session_state["my_subjects"] = sel_subjects
-            st.session_state["my_classes"]  = sel_classes_t
-            st.success(f"✅ 담당 과목 {len(sel_subjects)}개, 반 {len(sel_classes_t)}개 저장됐어요!")
+            sel_subjects = st.multiselect(
+                "담당 과목 선택", all_subjects,
+                default=[s for s in saved_subjects if s in all_subjects],
+                key="set_subjects"
+            )
+            sel_classes_t = st.multiselect(
+                "담당 반 선택", all_classes,
+                default=[c for c in saved_classes if c in all_classes],
+                key="set_classes"
+            )
+
+            if st.form_submit_button("💾 선생님 설정 저장", type="primary"):
+                saved["my_teacher_name"] = "" if sel_teacher_name == "— 선택 안 함 —" else sel_teacher_name
+                saved["my_subjects"] = sel_subjects
+                saved["my_classes"]  = sel_classes_t
+                save_user_settings(email, saved)
+                st.session_state["my_teacher_name"] = saved["my_teacher_name"]
+                st.session_state["my_subjects"] = sel_subjects
+                st.session_state["my_classes"]  = sel_classes_t
+                st.success(f"✅ 저장됐어요! (담당 과목 {len(sel_subjects)}개, 반 {len(sel_classes_t)}개)")
 
     # ── 설정 초기화 ────────────────────────────────────────────────────────
     st.markdown("---")
@@ -361,7 +383,7 @@ def show():
         if st.button("초기화", key="reset_settings"):
             save_user_settings(email, {})
             for key in ["my_class", "my_subjects", "my_classes", "tangu_map",
-                        "prefs", "_set_grade", "_set_class"]:
+                        "prefs", "my_teacher_name", "_set_grade", "_set_class"]:
                 st.session_state.pop(key, None)
             st.success("✅ 설정이 초기화됐어요.")
             st.rerun()
