@@ -4,7 +4,7 @@ KST = timezone(timedelta(hours=9))
 from utils.helpers import (
     load_timetable, load_teachers, get_current_period,
     get_next_period, get_current_day, PERIODS, get_teacher_location,
-    load_teacher_timetable,
+    load_teacher_timetable, teacher_subjects,
 )
 from utils.floorplan import render_map, find_room_floor, room_display_name
 
@@ -75,7 +75,7 @@ def show():
             for i, (_, t) in enumerate(sorted_teachers.iterrows()):
                 with cols[i % 3]:
                     if st.button(
-                        f"{t['교사명']} · {t['담당과목']}",
+                        f"{t['교사명']} · {teacher_subjects(t['교사명']) or t['담당과목']}",
                         key=f"tsbtn_{t['교사명']}",
                         help=str(t["교무실"]),
                         use_container_width=True,
@@ -102,7 +102,7 @@ def show():
         <div class="card">
             <div style="color:#9E9070; font-size:0.8rem; margin-bottom:8px;">기본 정보</div>
             <div style="font-size:1rem; font-weight:600;">담당 과목</div>
-            <div style="font-size:1.4rem; font-weight:900; color:#7D6B2E; margin:4px 0 12px;">{ti['담당과목']}</div>
+            <div style="font-size:1.4rem; font-weight:900; color:#7D6B2E; margin:4px 0 12px;">{teacher_subjects(selected_teacher) or ti['담당과목']}</div>
             <div style="font-size:1rem; font-weight:600;">교무실</div>
             <div style="font-size:1rem; color:#3D3929; margin-top:4px;">
                 📍 {ti['교무실위치']} ({ti['층']}층)

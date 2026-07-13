@@ -270,8 +270,8 @@ def show():
         c1, c2 = st.columns(2)
         with c1:
             subject_colors = st.toggle(
-                "과목 색상 표시", value=prefs.get("subject_colors", True),
-                help="시간표에서 과목별로 다른 색상을 표시해요")
+                "과목 색상 표시", value=prefs.get("subject_colors", False),
+                help="시간표에서 과목별로 다른 색상을 표시해요 (기본: 꺼짐)")
         with c2:
             show_dates = st.toggle(
                 "요일 옆에 날짜 표시", value=prefs.get("show_dates", True),
