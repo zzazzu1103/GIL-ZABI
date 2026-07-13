@@ -78,10 +78,12 @@ def teacher_subjects(teacher) -> str:
     teachers.csv 담당과목은 한 과목만 적혀 있어, 교사 시간표에서
     선택과목 코드를 제외한 실제 과목들을 모아 표시한다.
     """
+    # 담임 배정 등으로 붙는 과목은 담당 과목 표시에서 제외
+    NON_MAIN = {"학특"}
     try:
         ttt = load_teacher_timetable()
         subs = [s for s in ttt[ttt["교사명"] == teacher]["과목"].unique()
-                if not is_elective(s)]
+                if not is_elective(s) and s not in NON_MAIN]
         if subs:
             return " · ".join(sorted(subs))
     except FileNotFoundError:
