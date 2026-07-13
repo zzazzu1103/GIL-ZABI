@@ -10,6 +10,7 @@ import streamlit as st
 from utils.helpers import (
     load_timetable, load_teachers, sort_classes,
     load_teacher_timetable, ELECTIVE_CODES, elective_subject_name,
+    auto_subject_color,
 )
 from utils.floorplan import find_room_floor
 from utils.auth import get_current_user, get_role
@@ -261,14 +262,54 @@ def show():
         if not tangu_found_any:
             st.info(f"{sel_class}반에는 선택과목이 없어요.")
 
+        # ── 표시 설정 ────────────────────────────────────────────────────
+        st.markdown("---")
+        st.markdown("### 🎨 표시 설정")
+
+        prefs = {**saved.get("prefs", {}), **st.session_state.get("prefs", {})}
+        c1, c2 = st.columns(2)
+        with c1:
+            subject_colors = st.toggle(
+                "과목 색상 표시", value=prefs.get("subject_colors", True),
+                help="시간표에서 과목별로 다른 색상을 표시해요")
+        with c2:
+            show_dates = st.toggle(
+                "요일 옆에 날짜 표시", value=prefs.get("show_dates", True),
+                help="요일 옆에 이번 주 날짜를 표시해요 (예: 월 (7/13))")
+
+        color_map = dict(prefs.get("color_map", {}))
+        if subject_colors:
+            with st.expander("🖌️ 과목별 색상 커스텀"):
+                st.caption("시간표에 표시되는 과목 색깔을 바꿀 수 있어요. 기본색으로 되돌리려면 원래 색을 다시 고르세요.")
+                my_subjects_list = sorted(
+                    df[df["반"] == sel_class]["과목"].unique().tolist()
+                ) if sel_class else []
+                pick_cols = st.columns(4)
+                for i, subj in enumerate(my_subjects_list):
+                    with pick_cols[i % 4]:
+                        default = color_map.get(subj) or auto_subject_color(subj)
+                        picked = st.color_picker(subj, value=default, key=f"cp_{subj}")
+                        if picked != auto_subject_color(subj):
+                            color_map[subj] = picked
+                        else:
+                            color_map.pop(subj, None)
+
+        new_prefs = {
+            "subject_colors": subject_colors,
+            "show_dates": show_dates,
+            "color_map": color_map,
+        }
+
         # ── 저장 ────────────────────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("💾 설정 저장", type="primary", key="save_student", use_container_width=True):
             saved["my_class"]  = sel_class
             saved["tangu_map"] = new_tangu_map
+            saved["prefs"]     = new_prefs
             save_user_settings(email, saved)
             st.session_state["my_class"]  = sel_class
             st.session_state["tangu_map"] = new_tangu_map
+            st.session_state["prefs"]     = new_prefs
             st.success(f"✅ {sel_class}반으로 저장됐어요! 선택과목 {len(new_tangu_map)}개 설정 완료.")
             st.balloons()
 
@@ -310,7 +351,7 @@ def show():
         if st.button("초기화", key="reset_settings"):
             save_user_settings(email, {})
             for key in ["my_class", "my_subjects", "my_classes", "tangu_map",
-                        "_set_grade", "_set_class"]:
+                        "prefs", "_set_grade", "_set_class"]:
                 st.session_state.pop(key, None)
             st.success("✅ 설정이 초기화됐어요.")
             st.rerun()

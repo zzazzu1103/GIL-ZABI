@@ -46,6 +46,51 @@ def is_unselected_elective(subject) -> bool:
     return is_elective(subject) and str(subject) not in st.session_state.get("tangu_map", {})
 
 
+# ── 표시 설정 (개인 설정 페이지에서 저장) ────────────────────────
+PASTEL_PALETTE = [
+    "#FDE2E2", "#FFE9CF", "#FFF6C9", "#E6F4D5", "#D5EFE6", "#D3ECF5",
+    "#DBE4F8", "#E8DEF6", "#F6DEEE", "#EFE3D5", "#E3E8EC", "#F0EAD2",
+]
+
+
+def get_prefs() -> dict:
+    return st.session_state.get("prefs", {})
+
+
+def auto_subject_color(subject) -> str:
+    """과목명 해시 기반의 파스텔 기본 색상 (항상 같은 과목 = 같은 색)."""
+    import hashlib
+    h = int(hashlib.md5(str(subject).encode()).hexdigest(), 16)
+    return PASTEL_PALETTE[h % len(PASTEL_PALETTE)]
+
+
+def subject_color(subject) -> str | None:
+    """표시 설정이 켜져 있으면 과목 색상(커스텀 우선), 꺼져 있으면 None."""
+    prefs = get_prefs()
+    if not prefs.get("subject_colors", True):
+        return None
+    return prefs.get("color_map", {}).get(str(subject)) or auto_subject_color(subject)
+
+
+def week_dates(now=None) -> dict:
+    """이번 주(주말이면 다음 주) 월~금의 날짜 문자열. {'월': '7/13', ...}"""
+    n = now or datetime.now(KST)
+    monday = n - timedelta(days=n.weekday())
+    if n.weekday() >= 5:
+        monday += timedelta(days=7)
+    return {
+        d: f"{(monday + timedelta(days=i)).month}/{(monday + timedelta(days=i)).day}"
+        for i, d in enumerate(["월", "화", "수", "목", "금"])
+    }
+
+
+def day_label(day: str) -> str:
+    """요일 라벨. 설정이 켜져 있으면 날짜를 붙임 (예: '월 (7/13)')."""
+    if get_prefs().get("show_dates", True):
+        return f"{day} ({week_dates()[day]})"
+    return day
+
+
 def sort_classes(class_list: list) -> list:
     """
     반 목록을 숫자 기준으로 정렬.
