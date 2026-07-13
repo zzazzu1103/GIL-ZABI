@@ -14,7 +14,7 @@ from utils.helpers import (
 )
 from utils.floorplan import find_room_floor
 from utils.auth import get_current_user, get_role
-from utils.user_settings import load_user_settings, save_user_settings, storage_backend
+from utils.user_settings import load_user_settings, save_user_settings, storage_backend_detail
 
 # 선택/비선택 버튼 스타일 주입 (Streamlit 버튼을 CSS로 가로채기)
 _BUTTON_CSS = """
@@ -104,13 +104,15 @@ def show():
     email = user["email"]
     saved = load_user_settings(email)
 
-    if storage_backend() != "sheets":
+    backend, backend_error = storage_backend_detail()
+    if backend != "sheets":
         st.warning(
             "⚠️ 저장소가 Google Sheets에 연결되어 있지 않아요. "
             "지금은 서버의 임시 파일에만 저장되는데, 이 파일은 앱이 재배포·재시작될 때마다 "
-            "초기화돼요. 설정이 자꾸 사라진다면 이게 원인일 수 있어요 — "
-            "관리자에게 Google Sheets 연동(secrets.toml 의 gcp_service_account) 설정을 요청하세요."
+            "초기화돼요. 설정이 자꾸 사라진다면 이게 원인일 수 있어요."
         )
+        if backend_error:
+            st.caption(f"🔧 진단: {backend_error}")
 
     role_icon = "🎓" if role == "student" else "👩‍🏫" if role == "teacher" else "⚙️"
     st.markdown(f"""
