@@ -84,7 +84,22 @@ def show():
 
     if USE_SHEETS:
         st.info("📡 Google Sheets 실시간 연동 모드")
-        df = load_timetable_sheets()
+        try:
+            df = load_timetable_sheets()
+        except Exception as e:
+            from utils.sheets_sync import SheetColumnsMissing
+            if isinstance(e, SheetColumnsMissing):
+                st.error(
+                    f"❌ 시간표 시트('{e.sheet_name}')에 필요한 컬럼이 없어요: "
+                    f"**{', '.join(e.missing)}**\n\n"
+                    f"시트의 실제 컬럼: {', '.join(e.actual) if e.actual else '(비어 있음)'}\n\n"
+                    f"헤더 이름이 `요일 / 교시 / 반 / 과목 / 교사명 / 교실위치 / 층` 과 "
+                    f"정확히 같은지(띄어쓰기·오타 포함) 확인해주세요."
+                )
+            else:
+                st.error(f"❌ Google Sheets에서 시간표를 읽는 중 오류가 났어요: {e}")
+            st.info("대신 로컬 CSV 데이터로 관리자 페이지를 보여드릴게요.")
+            df = load_timetable()
     else:
         st.warning("📁 로컬 CSV 모드 (Google Sheets 미연동 — 변경 사항은 재시작 시 초기화됩니다)")
         df = load_timetable()
