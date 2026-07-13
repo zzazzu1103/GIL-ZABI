@@ -13,8 +13,18 @@ from datetime import datetime, timezone, timedelta
 
 KST = timezone(timedelta(hours=9))
 
-SHEET_ID   = "1-KT1n85tweEBfICn-9n10yKrRvY4vV-rwih5z-fslxU"
+# 시간표 동기화용으로 이미 연결된 스프레드시트(secrets["sheets"]["timetable_id"])를
+# 그대로 재사용하고, 그 안에 user_settings 탭을 둔다.
+# 별도 시트를 쓰고 싶으면 secrets.toml 에 sheets.user_settings_id 를 추가하면 된다.
 SHEET_NAME = "user_settings"
+
+
+def _sheet_id():
+    try:
+        sheets = st.secrets["sheets"]
+        return sheets.get("user_settings_id") or sheets["timetable_id"]
+    except Exception:
+        return None
 
 SETTINGS_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "data", "user_settings.json"
@@ -55,14 +65,33 @@ def _get_client(readonly=True):
 
 
 def _get_worksheet(readonly=True):
+    sheet_id = _sheet_id()
+    if not sheet_id:
+        return None
     gc = _get_client(readonly)
     if not gc:
         return None
     try:
-        sh = gc.open_by_key(SHEET_ID)
-        return sh.worksheet(SHEET_NAME)
+        sh = gc.open_by_key(sheet_id)
     except Exception:
         return None
+    try:
+        return sh.worksheet(SHEET_NAME)
+    except Exception:
+        # user_settings 탭이 아직 없으면 쓰기 모드에서만 새로 만든다
+        # (읽기 전용 권한으로는 add_worksheet 이 실패하므로 그대로 None 반환)
+        if readonly:
+            return None
+        try:
+            ws = sh.add_worksheet(title=SHEET_NAME, rows=1000, cols=7)
+            ws.append_row(
+                ["email", "my_class", "tangu_map", "my_subjects",
+                 "my_classes", "updated_at", "prefs"],
+                value_input_option="USER_ENTERED",
+            )
+            return ws
+        except Exception:
+            return None
 
 
 def _find_row(ws, email: str):
