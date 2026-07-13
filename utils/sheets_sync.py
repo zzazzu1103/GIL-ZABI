@@ -55,18 +55,36 @@ def _sheet_to_df(gc, spreadsheet_id: str, sheet_name: str) -> pd.DataFrame:
     sh = gc.open_by_key(spreadsheet_id)
     ws = sh.worksheet(sheet_name)
     records = ws.get_all_records()
-    return pd.DataFrame(records)
+    df = pd.DataFrame(records)
+    # 시트 첫 열 헤더에 BOM(﻿)이나 앞뒤 공백이 섞여 들어오면
+    # "교시" 같은 정확한 컬럼명 매칭이 실패하므로 정리해 둔다.
+    df.columns = [str(c).strip().lstrip("﻿") for c in df.columns]
+    return df
+
+
+class SheetColumnsMissing(Exception):
+    """시트에 필요한 컬럼이 없을 때. 실제 컬럼 목록을 함께 담아 화면에 안내한다."""
+    def __init__(self, sheet_name, missing, actual):
+        self.sheet_name, self.missing, self.actual = sheet_name, missing, actual
+        super().__init__(
+            f"'{sheet_name}' 시트에 필요한 컬럼이 없어요: {missing} "
+            f"(실제 컬럼: {actual})"
+        )
+
+
+def _require_columns(df: pd.DataFrame, sheet_name: str, required: list[str]):
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        raise SheetColumnsMissing(sheet_name, missing, list(df.columns))
 
 
 # ── 공개 API (ttl=60초 캐시) ───────────────────────────────────
 @st.cache_data(ttl=60, show_spinner="📡 시간표 데이터 로드 중...")
 def load_timetable_sheets() -> pd.DataFrame:
     gc = _get_gspread_client()
-    df = _sheet_to_df(
-        gc,
-        st.secrets["sheets"]["timetable_id"],
-        st.secrets["sheets"]["timetable_sheet"],
-    )
+    sheet_name = st.secrets["sheets"]["timetable_sheet"]
+    df = _sheet_to_df(gc, st.secrets["sheets"]["timetable_id"], sheet_name)
+    _require_columns(df, sheet_name, ["요일", "교시", "반", "층"])
     df["교시"] = pd.to_numeric(df["교시"], errors="coerce").astype("Int64")
     df["층"]   = pd.to_numeric(df["층"],   errors="coerce").astype("Int64")
     df = df.dropna(subset=["요일", "교시", "반"])
