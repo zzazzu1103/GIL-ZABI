@@ -144,8 +144,6 @@ if role != "guest":
 # ── 페이지 라우팅 ─────────────────────────────────────────────
 if page == "🏠 홈":
     from pages.home import show; show()
-elif page == "📅 시간표 조회":
-    from pages.timetable import show; show()
 elif page == "🗺️ 학교 지도":
     from pages.map_view import show; show()
 elif page == "🔍 선생님 찾기":
