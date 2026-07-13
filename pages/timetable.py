@@ -110,62 +110,6 @@ def _render_day_cards(sub: pd.DataFrame, sel_day: str, cur_day, cur_period, nxt_
         """, unsafe_allow_html=True)
 
 
-def show_for_class(preset_class: str = None, preset_day: str = None):
-    """홈화면에서 호출하는 함수 — 헤더 없이 시간표만 렌더링"""
-    df = load_timetable()
-    now = datetime.now(KST)
-    cur_day    = get_current_day(now)
-    cur_period = get_current_period(now)
-    nxt_period = get_next_period(now)
-
-    classes = sort_classes(df["반"].unique().tolist())
-    days    = ["월", "화", "수", "목", "금"]
-    role    = get_role()
-
-    # 기본 반 결정: preset > 세션 내 반 > 첫번째 반
-    default_class = preset_class or st.session_state.get("my_class", classes[0])
-    default_day   = preset_day or (cur_day if cur_day in days else "월")
-
-    col1, col2, col3 = st.columns([2, 2, 1])
-    with col1:
-        if role == "student" and "my_class" in st.session_state:
-            st.markdown(
-                f'<div class="card" style="padding:10px 14px;">'
-                f'<span style="color:#9E9070;font-size:0.78rem;">내 반</span><br>'
-                f'<span style="font-weight:700;color:#3D3929;">{default_class}</span>'
-                f'</div>', unsafe_allow_html=True)
-            sel_class = default_class
-        else:
-            idx = classes.index(default_class) if default_class in classes else 0
-            sel_class = st.selectbox("🏫 반 선택", classes, index=idx, key="home_timetable_class")
-    with col2:
-        sel_day = st.selectbox("📆 요일", days, index=days.index(default_day), key="home_timetable_day")
-    with col3:
-        st.markdown("<br>", unsafe_allow_html=True)
-        show_all = st.checkbox("전체 요일", value=False, key="home_timetable_all")
-
-    if show_all:
-        _render_pivot(df, sel_class, days)
-        return
-
-    sub = get_personalized_timetable(df, sel_class, sel_day)
-    if sub.empty:
-        st.info("해당 반/요일 시간표 데이터가 없습니다.")
-        return
-
-    _render_day_cards(sub, sel_day, cur_day, cur_period, nxt_period, now)
-
-    # 요약
-    st.markdown("---")
-    floors_visited = sub["층"].unique()
-    subjects = sub["과목"].unique()
-    c1, c2, c3 = st.columns(3)
-    with c1: st.metric("총 수업 수", f"{len(sub)}교시")
-    with c2: st.metric("이동하는 층", f"{len(floors_visited)}개 층",
-                       delta=f"{', '.join(map(str, sorted(floors_visited)))}층")
-    with c3: st.metric("과목 수", f"{len(subjects)}과목")
-
-
 def _render_pivot(df, sel_class, days):
     """전체 요일 피벗 테이블 (탐구 매핑 적용, 미선택 선택과목은 교사·교실 숨김)"""
     st.markdown(f"### 📋 {sel_class} 주간 시간표")
@@ -193,27 +137,37 @@ def _render_pivot(df, sel_class, days):
         for d in ordered_days:
             val = grid[p].get(d)
             if val:
-                content = "<br>".join(val[0].split("\n"))
+                lines = val[0].split("\n")
+                content = (
+                    f'<b style="font-size:0.92rem;">{lines[0]}</b>'
+                    + "".join(f'<br><span style="font-size:0.76rem;color:#8C8064;">{l}</span>'
+                              for l in lines[1:])
+                )
                 color = subject_color(val[1]) or "#fff"
                 cells.append(f'<td style="{_TD} background:{color};">{content}</td>')
             else:
-                cells.append(f'<td style="{_TD} background:#F5F0E8; color:#C9BFA9;">—</td>')
+                cells.append(f'<td style="{_TD} background:#F5F0E8; border-color:#EDE7DA; color:#C9BFA9;">—</td>')
         rows_html.append(
-            f'<tr><th style="{_TH}">{p}교시</th>{"".join(cells)}</tr>'
+            f'<tr><th style="{_TH_ROW}">{p}교시</th>{"".join(cells)}</tr>'
         )
 
     head = "".join(f'<th style="{_TH}">{day_label(d)}</th>' for d in ordered_days)
     st.markdown(
         f'<div style="overflow-x:auto;">'
-        f'<table style="width:100%; border-collapse:collapse; background:#fff;">'
+        f'<table style="{_TABLE}">'
         f'<thead><tr><th style="{_TH}"></th>{head}</tr></thead>'
         f'<tbody>{"".join(rows_html)}</tbody></table></div>',
         unsafe_allow_html=True,
     )
 
 
-_TH = "padding:10px 8px; background:#F5F0E8; color:#7D6B2E; font-weight:700; border:1px solid #E0D8CC;"
-_TD = "padding:10px 8px; border:1px solid #E0D8CC; font-size:0.85rem; color:#3D3929; text-align:center; vertical-align:middle;"
+# 둥근 카드형 표 스타일 (교시 카드와 톤 통일)
+_TABLE  = "width:100%; border-collapse:separate; border-spacing:6px; background:transparent;"
+_TH     = "padding:6px 4px; color:#9E9070; font-weight:700; font-size:0.82rem; border:none; background:transparent;"
+_TH_ROW = ("padding:10px 6px; background:#F5F0E8; color:#7D6B2E; font-weight:900; font-size:0.85rem;"
+           "border:1px solid #E0D8CC; border-radius:10px; min-width:52px;")
+_TD     = ("padding:10px 8px; border:1px solid #E0D8CC; border-radius:10px; font-size:0.85rem;"
+           "color:#3D3929; text-align:center; vertical-align:middle;")
 
 
 def _render_grade_grid(df, grade, sel_day):
@@ -242,12 +196,12 @@ def _render_grade_grid(df, grade, sel_day):
                 )
             else:
                 cells.append(f'<td style="{_TD} background:#F5F0E8; color:#C9BFA9;">—</td>')
-        rows_html.append(f'<tr><th style="{_TH}">{p}교시</th>{"".join(cells)}</tr>')
+        rows_html.append(f'<tr><th style="{_TH_ROW}">{p}교시</th>{"".join(cells)}</tr>')
 
     head = "".join(f'<th style="{_TH}">{c.split("-")[1]}반</th>' for c in class_cols)
     st.markdown(
         f'<div style="overflow-x:auto;">'
-        f'<table style="width:100%; border-collapse:collapse; background:#fff;">'
+        f'<table style="{_TABLE}">'
         f'<thead><tr><th style="{_TH}">교시</th>{head}</tr></thead>'
         f'<tbody>{"".join(rows_html)}</tbody></table></div>',
         unsafe_allow_html=True,
@@ -256,13 +210,18 @@ def _render_grade_grid(df, grade, sel_day):
 
 
 def show():
+    """단독 페이지용 (현재는 홈에 통합되어 홈에서 show_body 를 사용)"""
     st.markdown("""
     <div class="main-header">
         <h1>📅 시간표 조회</h1>
         <p>반별 전체 시간표를 한눈에 확인하고, 현재·다음 교시를 실시간으로 파악하세요</p>
     </div>
     """, unsafe_allow_html=True)
+    show_body()
 
+
+def show_body():
+    """시간표 본문 — 홈 페이지에서 호출"""
     df = load_timetable()
     now = datetime.now(KST)
     cur_day    = get_current_day(now)

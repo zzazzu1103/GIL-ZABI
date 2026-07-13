@@ -47,17 +47,11 @@ def show():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── 시간표 (timetable.py 재사용) ────────────────────────────────
+    # ── 시간표 (timetable.py 본문 통합) ─────────────────────────────
     st.markdown("### 📅 시간표")
 
-    my_class = st.session_state.get("my_class")
-    cur_day_for_default = cur_day if cur_day else "월"
-
-    from pages.timetable import show_for_class
-    show_for_class(
-        preset_class=my_class,
-        preset_day=cur_day_for_default,
-    )
+    from pages.timetable import show_body
+    show_body()
 
     st.markdown("<br>", unsafe_allow_html=True)
 
