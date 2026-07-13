@@ -13,8 +13,18 @@ from datetime import datetime, timezone, timedelta
 
 KST = timezone(timedelta(hours=9))
 
-SHEET_ID   = "1-KT1n85tweEBfICn-9n10yKrRvY4vV-rwih5z-fslxU"
+# 시간표 동기화용으로 이미 연결된 스프레드시트(secrets["sheets"]["timetable_id"])를
+# 그대로 재사용하고, 그 안에 user_settings 탭을 둔다.
+# 별도 시트를 쓰고 싶으면 secrets.toml 에 sheets.user_settings_id 를 추가하면 된다.
 SHEET_NAME = "user_settings"
+
+
+def _sheet_id():
+    try:
+        sheets = st.secrets["sheets"]
+        return sheets.get("user_settings_id") or sheets["timetable_id"]
+    except Exception:
+        return None
 
 SETTINGS_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "data", "user_settings.json"
@@ -35,7 +45,9 @@ def _get_client(readonly=True):
     try:
         import gspread
         from google.oauth2.service_account import Credentials
-    except ImportError:
+    except Exception:
+        # ImportError(미설치) 외에 native crypto 라이브러리 로드 실패(예:
+        # 환경별 cryptography/cffi 바이너리 불일치)도 폴백으로 처리한다.
         return None
     try:
         scopes = (
@@ -53,14 +65,33 @@ def _get_client(readonly=True):
 
 
 def _get_worksheet(readonly=True):
+    sheet_id = _sheet_id()
+    if not sheet_id:
+        return None
     gc = _get_client(readonly)
     if not gc:
         return None
     try:
-        sh = gc.open_by_key(SHEET_ID)
-        return sh.worksheet(SHEET_NAME)
+        sh = gc.open_by_key(sheet_id)
     except Exception:
         return None
+    try:
+        return sh.worksheet(SHEET_NAME)
+    except Exception:
+        # user_settings 탭이 아직 없으면 쓰기 모드에서만 새로 만든다
+        # (읽기 전용 권한으로는 add_worksheet 이 실패하므로 그대로 None 반환)
+        if readonly:
+            return None
+        try:
+            ws = sh.add_worksheet(title=SHEET_NAME, rows=1000, cols=7)
+            ws.append_row(
+                ["email", "my_class", "tangu_map", "my_subjects",
+                 "my_classes", "updated_at", "prefs"],
+                value_input_option="USER_ENTERED",
+            )
+            return ws
+        except Exception:
+            return None
 
 
 def _find_row(ws, email: str):
@@ -96,6 +127,12 @@ def _save_json(email: str, settings: dict):
 
 
 # ── 공개 API ──────────────────────────────────────────────────
+
+def storage_backend() -> str:
+    """현재 사용 중인 저장 방식. 'sheets' 가 아니면 로컬 파일이라
+    Streamlit Cloud 재배포·재시작 시 초기화된다."""
+    return "sheets" if _get_worksheet(readonly=True) else "json"
+
 
 def load_user_settings(email: str) -> dict:
     """이메일로 설정 불러오기. 시트 → JSON 폴백 순서."""
