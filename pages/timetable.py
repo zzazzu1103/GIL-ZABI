@@ -8,9 +8,10 @@ from utils.helpers import (
     get_current_day, PERIODS, period_status,
     STATUS_LABELS, STATUS_COLORS, sort_classes,
     get_personalized_timetable, is_unselected_elective,
-    is_elective, elective_subject_name,
+    is_elective, elective_subject_name, load_teacher_timetable,
     subject_color, day_label,
 )
+from utils.floorplan import room_display_name
 
 
 def _subject_display(subject, teacher) -> str:
@@ -108,6 +109,99 @@ def _render_day_cards(sub: pd.DataFrame, sel_day: str, cur_day, cur_period, nxt_
             </div>
         </div>
         """, unsafe_allow_html=True)
+
+
+def _render_teacher_day_cards(sub: pd.DataFrame, sel_day: str, cur_day, cur_period, nxt_period, now):
+    """교사 본인 시간표 카드 (반/교실 표시). _render_day_cards 와 같은 형태지만
+    담당 반을 교실 코드로부터 유추해 표시한다(교사 시간표엔 반 컬럼이 없음)."""
+    for _, row in sub.iterrows():
+        period = int(row["교시"])
+        s, e   = PERIODS.get(period, (None, None))
+        time_str = f"{s.strftime('%H:%M')} ~ {e.strftime('%H:%M')}" if s else ""
+
+        status = "upcoming"
+        card_cls = ""
+        badge_cls = "badge-upcoming"
+        badge_label = "⚪ 예정"
+        if sel_day == cur_day:
+            status = period_status(period, now)
+            if status == "current":
+                card_cls, badge_cls, badge_label = "card-current", "badge-current", "🔴 수업 중"
+            elif status == "next":
+                card_cls, badge_cls, badge_label = "card-next", "badge-next", "🟢 다음 교시"
+            elif status == "done":
+                badge_cls, badge_label = "badge-done", "⚫ 완료"
+
+        floor_colors = {1: "#2E6B7D", 2: "#6B2E7D", 3: "#FF7B72", 4: "#C2852A", 5: "#059669"}
+        floor_color = floor_colors.get(int(row["층"]), "#9E9070")
+        room_label = room_display_name(str(row["교실위치"]))
+
+        # 빈 줄이 HTML 블록 파싱을 깨는 문제(마크다운 렌더러가 들여쓰기된
+        # 뒷부분을 코드블록으로 오인)를 피하려고 한 줄짜리 문자열로 조립한다.
+        st.markdown(
+            f'<div class="card {card_cls}">'
+            f'<div style="display:flex; align-items:center; gap:16px;">'
+            f'<div style="min-width:56px; text-align:center; background:#FAF7F2; '
+            f'border-radius:10px; padding:10px 0;">'
+            f'<div style="font-size:1.4rem; font-weight:900; color:#7D6B2E;">{period}</div>'
+            f'<div style="font-size:0.65rem; color:#9E9070;">교시</div></div>'
+            f'<div style="flex:1;">'
+            f'<div style="font-size:0.78rem; color:#9E9070; margin-bottom:4px;">{time_str}</div>'
+            f'<div style="font-size:1.15rem; font-weight:700; color:#3D3929;">'
+            f'{row["과목"]}'
+            f'<span style="font-size:0.85rem; font-weight:400; color:#9E9070; margin-left:6px;">'
+            f'{room_label}</span></div></div>'
+            f'<div style="text-align:right; min-width:120px;">'
+            f'<div style="font-size:1rem; font-weight:700; color:{floor_color};">📍 {row["교실위치"]}</div>'
+            f'<div style="font-size:0.78rem; color:#9E9070; margin:2px 0 6px;">{row["층"]}층</div>'
+            f'<span class="status-badge {badge_cls}">{badge_label}</span>'
+            f'</div></div></div>',
+            unsafe_allow_html=True,
+        )
+
+
+def _render_teacher_pivot(ttt, teacher, days):
+    """교사 본인 주간 시간표 피벗 (전체 요일)."""
+    st.markdown(f"### 📋 {teacher} 선생님 주간 시간표")
+    sub = ttt[ttt["교사명"] == teacher]
+    if sub.empty:
+        st.info("등록된 수업 데이터가 없습니다.")
+        return
+
+    grid = {}
+    for _, row in sub.iterrows():
+        room_label = room_display_name(str(row["교실위치"]))
+        content = f'{row["과목"]}\n{room_label}'
+        grid.setdefault(int(row["교시"]), {})[row["요일"]] = (content, row["과목"])
+    periods = sorted(grid)
+    ordered_days = [d for d in days if any(d in g for g in grid.values())]
+
+    rows_html = []
+    for p in periods:
+        cells = []
+        for d in ordered_days:
+            val = grid[p].get(d)
+            if val:
+                lines = val[0].split("\n")
+                content = (
+                    f'<b style="font-size:0.92rem;">{lines[0]}</b>'
+                    + "".join(f'<br><span style="font-size:0.76rem;color:#8C8064;">{l}</span>'
+                              for l in lines[1:])
+                )
+                color = subject_color(val[1]) or "#fff"
+                cells.append(f'<td style="{_TD} background:{color};">{content}</td>')
+            else:
+                cells.append(f'<td style="{_TD} background:#F5F0E8; border-color:#EDE7DA; color:#C9BFA9;">—</td>')
+        rows_html.append(f'<tr><th style="{_TH_ROW}">{p}교시</th>{"".join(cells)}</tr>')
+
+    head = "".join(f'<th style="{_TH}">{day_label(d)}</th>' for d in ordered_days)
+    st.markdown(
+        f'<div style="overflow-x:auto;">'
+        f'<table style="{_TABLE}">'
+        f'<thead><tr><th style="{_TH}"></th>{head}</tr></thead>'
+        f'<tbody>{"".join(rows_html)}</tbody></table></div>',
+        unsafe_allow_html=True,
+    )
 
 
 def _render_pivot(df, sel_class, days):
@@ -232,8 +326,39 @@ def show_body():
     days    = ["월", "화", "수", "목", "금"]
     role    = get_role()
     my_class = st.session_state.get("my_class", classes[0])
+    my_teacher_name = st.session_state.get("my_teacher_name", "")
 
     grades = sorted({int(c.split("-")[0]) for c in classes if "-" in c})
+
+    # ── 교사: 본인 시간표 보기 ───────────────────────────────────────
+    if role in ("teacher", "admin") and my_teacher_name:
+        show_my_schedule = st.checkbox(
+            f"👩‍🏫 내 시간표 보기 ({my_teacher_name} 선생님)", value=False,
+            key="show_my_teacher_schedule",
+        )
+        if show_my_schedule:
+            ttt = load_teacher_timetable()
+            col_a, col_b = st.columns([2, 1])
+            with col_a:
+                default_day = cur_day if cur_day in days else "월"
+                sel_day = st.selectbox("📆 요일 선택", days, index=days.index(default_day),
+                                       format_func=day_label, key="teacher_sched_day")
+            with col_b:
+                st.markdown("<br>", unsafe_allow_html=True)
+                show_all_t = st.checkbox("전체 요일", value=False, key="teacher_sched_all")
+
+            if show_all_t:
+                _render_teacher_pivot(ttt, my_teacher_name, days)
+                return
+
+            sub = ttt[(ttt["교사명"] == my_teacher_name) & (ttt["요일"] == sel_day)].sort_values("교시")
+            if sub.empty:
+                st.info(f"{day_label(sel_day)}요일에는 수업이 없어요.")
+                return
+
+            st.markdown(f"### {my_teacher_name} 선생님 · {day_label(sel_day)}요일 시간표")
+            _render_teacher_day_cards(sub, sel_day, cur_day, cur_period, nxt_period, now)
+            return
 
     col1, col2, col3, col4 = st.columns([1.2, 1.2, 2, 1.4])
     if role == "student" and "my_class" in st.session_state:

@@ -74,8 +74,9 @@ def show():
             cols = st.columns(3)
             for i, (_, t) in enumerate(sorted_teachers.iterrows()):
                 with cols[i % 3]:
+                    subj = teacher_subjects(t['교사명']) or t['담당과목']
                     if st.button(
-                        f"{t['교사명']} · {teacher_subjects(t['교사명']) or t['담당과목']}",
+                        f"**{t['교사명']}**  \n:small[:gray[{subj}]]",
                         key=f"tsbtn_{t['교사명']}",
                         help=str(t["교무실"]),
                         use_container_width=True,
