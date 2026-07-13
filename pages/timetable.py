@@ -9,6 +9,7 @@ from utils.helpers import (
     STATUS_LABELS, STATUS_COLORS, sort_classes,
     get_personalized_timetable, is_unselected_elective,
     is_elective, elective_subject_name,
+    subject_color, day_label,
 )
 
 
@@ -89,7 +90,9 @@ def _render_day_cards(sub: pd.DataFrame, sel_day: str, cur_day, cur_period, nxt_
                 <div style="flex:1;">
                     <div style="font-size:0.78rem; color:#9E9070; margin-bottom:4px;">{time_str}</div>
                     <div style="font-size:1.15rem; font-weight:700; color:#3D3929;">
-                        {_subject_display(row['과목'], row['교사명'])}
+                        <span style="{f'background:{subject_color(row["과목"])}; padding:2px 10px; border-radius:6px;' if subject_color(row['과목']) else ''}">
+                            {_subject_display(row['과목'], row['교사명'])}
+                        </span>
                         <span style="font-size:0.85rem; font-weight:400; color:#9E9070; margin-left:6px;">
                             {row['교사명']} 선생님
                         </span>
@@ -178,14 +181,11 @@ def _render_pivot(df, sel_class, days):
 
     # 배포 서버(py3.14)에서 st.dataframe 의 네이티브 직렬화가 프로세스를
     # 죽이는 문제가 있어 순수 HTML 표로 렌더링한다.
-    grid = {}   # {교시: {요일: 내용}}
+    grid = {}   # {교시: {요일: (내용, 과목)}}
     for _, row in sub.iterrows():
-        grid.setdefault(int(row["교시"]), {})[row["요일"]] = _cell(row)
+        grid.setdefault(int(row["교시"]), {})[row["요일"]] = (_cell(row), row["과목"])
     periods = sorted(grid)
     ordered_days = [d for d in days if any(d in g for g in grid.values())]
-
-    th = "padding:10px 8px; background:#F5F0E8; color:#7D6B2E; font-weight:700; border:1px solid #E0D8CC;"
-    td = "padding:10px 8px; border:1px solid #E0D8CC; font-size:0.85rem; color:#3D3929; text-align:center; vertical-align:middle;"
 
     rows_html = []
     for p in periods:
@@ -193,22 +193,66 @@ def _render_pivot(df, sel_class, days):
         for d in ordered_days:
             val = grid[p].get(d)
             if val:
-                content = "<br>".join(val.split("\n"))
-                cells.append(f'<td style="{td} background:#fff;">{content}</td>')
+                content = "<br>".join(val[0].split("\n"))
+                color = subject_color(val[1]) or "#fff"
+                cells.append(f'<td style="{_TD} background:{color};">{content}</td>')
             else:
-                cells.append(f'<td style="{td} background:#F5F0E8; color:#C9BFA9;">—</td>')
+                cells.append(f'<td style="{_TD} background:#F5F0E8; color:#C9BFA9;">—</td>')
         rows_html.append(
-            f'<tr><th style="{th}">{p}교시</th>{"".join(cells)}</tr>'
+            f'<tr><th style="{_TH}">{p}교시</th>{"".join(cells)}</tr>'
         )
 
-    head = "".join(f'<th style="{th}">{d}</th>' for d in ordered_days)
+    head = "".join(f'<th style="{_TH}">{day_label(d)}</th>' for d in ordered_days)
     st.markdown(
         f'<div style="overflow-x:auto;">'
         f'<table style="width:100%; border-collapse:collapse; background:#fff;">'
-        f'<thead><tr><th style="{th}"></th>{head}</tr></thead>'
+        f'<thead><tr><th style="{_TH}"></th>{head}</tr></thead>'
         f'<tbody>{"".join(rows_html)}</tbody></table></div>',
         unsafe_allow_html=True,
     )
+
+
+_TH = "padding:10px 8px; background:#F5F0E8; color:#7D6B2E; font-weight:700; border:1px solid #E0D8CC;"
+_TD = "padding:10px 8px; border:1px solid #E0D8CC; font-size:0.85rem; color:#3D3929; text-align:center; vertical-align:middle;"
+
+
+def _render_grade_grid(df, grade, sel_day):
+    """학년 전체 시간표: 한 요일의 반×교시 그리드 (s2h9 스타일)."""
+    st.markdown(f"### 🏫 {grade}학년 전체 시간표 — {day_label(sel_day)}요일")
+    sub = df[(df["반"].str.startswith(f"{grade}-")) & (df["요일"] == sel_day)]
+    if sub.empty:
+        st.info("해당 학년/요일 데이터가 없습니다.")
+        return
+    class_cols = sort_classes(sub["반"].unique().tolist())
+    grid = {}   # {교시: {반: (과목, 교사)}}
+    for _, row in sub.iterrows():
+        grid.setdefault(int(row["교시"]), {})[row["반"]] = (row["과목"], row["교사명"])
+
+    rows_html = []
+    for p in sorted(grid):
+        cells = []
+        for c in class_cols:
+            val = grid[p].get(c)
+            if val:
+                color = subject_color(val[0]) or "#fff"
+                cells.append(
+                    f'<td style="{_TD} background:{color};">'
+                    f'<b>{val[0]}</b><br>'
+                    f'<span style="font-size:0.75rem;color:#6B6350;">{val[1]}</span></td>'
+                )
+            else:
+                cells.append(f'<td style="{_TD} background:#F5F0E8; color:#C9BFA9;">—</td>')
+        rows_html.append(f'<tr><th style="{_TH}">{p}교시</th>{"".join(cells)}</tr>')
+
+    head = "".join(f'<th style="{_TH}">{c.split("-")[1]}반</th>' for c in class_cols)
+    st.markdown(
+        f'<div style="overflow-x:auto;">'
+        f'<table style="width:100%; border-collapse:collapse; background:#fff;">'
+        f'<thead><tr><th style="{_TH}">교시</th>{head}</tr></thead>'
+        f'<tbody>{"".join(rows_html)}</tbody></table></div>',
+        unsafe_allow_html=True,
+    )
+    st.caption("선택과목(탐구·교과)은 반 교실 기준 대표 선생님이 표시돼요.")
 
 
 def show():
@@ -230,27 +274,43 @@ def show():
     role    = get_role()
     my_class = st.session_state.get("my_class", classes[0])
 
-    col1, col2, col3 = st.columns([2, 2, 1])
-    with col1:
-        if role == "student" and "my_class" in st.session_state:
+    grades = sorted({int(c.split("-")[0]) for c in classes if "-" in c})
+
+    col1, col2, col3, col4 = st.columns([1.2, 1.2, 2, 1.4])
+    if role == "student" and "my_class" in st.session_state:
+        with col1:
             st.markdown(
                 f'<div class="card" style="padding:10px 14px;">'
                 f'<span style="color:#9E9070;font-size:0.78rem;">내 반</span><br>'
                 f'<span style="font-weight:700;color:#3D3929;">{my_class}</span>'
                 f'</div>', unsafe_allow_html=True)
-            sel_class = my_class
-        else:
-            # 개인 설정에 저장된 내 반을 기본값으로
-            default_idx = classes.index(my_class) if my_class in classes else 0
-            sel_class = st.selectbox("🏫 반 선택", classes, index=default_idx)
-    with col2:
-        default_day = cur_day if cur_day in days else "월"
-        sel_day = st.selectbox("📆 요일 선택", days, index=days.index(default_day))
+        sel_class = my_class
+        sel_grade = int(my_class.split("-")[0]) if "-" in my_class else grades[0]
+    else:
+        # 개인 설정에 저장된 내 반을 기본값으로, 학년/반 분리 선택
+        my_grade = int(my_class.split("-")[0]) if my_class and "-" in my_class else grades[0]
+        with col1:
+            sel_grade = st.selectbox("🎓 학년", grades, index=grades.index(my_grade) if my_grade in grades else 0,
+                                     format_func=lambda g: f"{g}학년")
+        grade_classes = [c for c in classes if c.startswith(f"{sel_grade}-")]
+        with col2:
+            default_idx = grade_classes.index(my_class) if my_class in grade_classes else 0
+            sel_class = st.selectbox("🏫 반", grade_classes, index=default_idx,
+                                     format_func=lambda c: f"{c.split('-')[1]}반")
     with col3:
+        default_day = cur_day if cur_day in days else "월"
+        sel_day = st.selectbox("📆 요일 선택", days, index=days.index(default_day),
+                               format_func=day_label)
+    with col4:
         st.markdown("<br>", unsafe_allow_html=True)
-        show_all = st.checkbox("전체 요일", value=False)
+        show_all   = st.checkbox("전체 요일", value=False)
+        show_grade = st.checkbox("학년 전체 시간표", value=False)
 
     st.markdown("---")
+
+    if show_grade:
+        _render_grade_grid(df, sel_grade, sel_day)
+        return
 
     if show_all:
         _render_pivot(df, sel_class, days)
@@ -262,7 +322,7 @@ def show():
         st.warning("해당 반/요일 데이터가 없습니다.")
         return
 
-    st.markdown(f"### {sel_class} · {sel_day}요일 시간표")
+    st.markdown(f"### {sel_class} · {day_label(sel_day)}요일 시간표")
 
     col_l = st.columns(4)
     badges = [

@@ -25,6 +25,7 @@ DEFAULT_SETTINGS = {
     "my_subjects": [],
     "my_classes":  [],
     "tangu_map":   {},
+    "prefs":       {},   # 표시 설정: subject_colors, show_dates, color_map
 }
 
 
@@ -111,11 +112,14 @@ def load_user_settings(email: str) -> dict:
                     except Exception:
                         return default
 
+                # 컬럼: A=email, B=my_class, C=tangu_map, D=my_subjects,
+                #       E=my_classes, F=updated_at, G=prefs(표시 설정)
                 return {
                     "my_class":    row[1] if len(row) > 1 else "",
                     "tangu_map":   _safe_json(row[2] if len(row) > 2 else "", {}),
                     "my_subjects": _safe_json(row[3] if len(row) > 3 else "", []),
                     "my_classes":  _safe_json(row[4] if len(row) > 4 else "", []),
+                    "prefs":       _safe_json(row[6] if len(row) > 6 else "", {}),
                 }
         except Exception:
             pass
@@ -136,6 +140,7 @@ def save_user_settings(email: str, settings: dict):
         json.dumps(settings.get("my_subjects", []), ensure_ascii=False),
         json.dumps(settings.get("my_classes", []),  ensure_ascii=False),
         now_str,
+        json.dumps(settings.get("prefs", {}),       ensure_ascii=False),
     ]
 
     ws = _get_worksheet(readonly=False)
@@ -143,7 +148,7 @@ def save_user_settings(email: str, settings: dict):
         try:
             row_num = _find_row(ws, email)
             if row_num:
-                ws.update(f"A{row_num}:F{row_num}", [row_data])
+                ws.update(f"A{row_num}:G{row_num}", [row_data])
             else:
                 ws.append_row(row_data, value_input_option="USER_ENTERED")
             return  # 시트 저장 성공
@@ -165,3 +170,5 @@ def apply_user_settings_to_session(email: str):
         st.session_state["my_subjects"] = settings["my_subjects"]
     if settings.get("my_classes"):
         st.session_state["my_classes"] = settings["my_classes"]
+    if settings.get("prefs"):
+        st.session_state["prefs"] = settings["prefs"]
