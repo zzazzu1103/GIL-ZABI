@@ -11,8 +11,18 @@ from utils.helpers import (
     is_elective, elective_subject_name, load_teacher_timetable,
     subject_color, day_label,
 )
-from utils.floorplan import room_display_name
+from utils.floorplan import room_display_name, ROOM_NAME, ROOM_FLOOR
 from utils.room_overrides import save_room_override
+
+
+def _room_options():
+    """지도에 실제로 존재하는 교실 id 목록 (층 → 이름 순 정렬).
+
+    교실 위치 수정은 이 목록에서만 고를 수 있게 해서, 지도의 id 와
+    어긋나는 값을 저장해 지도에 아무것도 표시되지 않는 상황을 막는다.
+    """
+    ids = sorted(ROOM_NAME, key=lambda rid: (ROOM_FLOOR.get(rid, 0), ROOM_NAME[rid]))
+    return [(rid, f"{ROOM_NAME[rid]} · {rid} ({ROOM_FLOOR.get(rid, '?')}층)") for rid in ids]
 
 
 def _subject_display(subject, teacher) -> str:
@@ -183,13 +193,18 @@ def _render_teacher_day_cards(teacher: str, sub: pd.DataFrame, sel_day: str,
         )
 
         with st.popover("✏️ 교실 위치 수정"):
-            st.caption(f"{period}교시 · {row['과목']} 교실을 바로 바꿀 수 있어요.")
-            new_room = st.text_input(
-                "교실 코드", value=str(row["교실위치"]), key=f"room_edit_{sel_day}_{period}",
-                help="예: 205, 생물실험실 등 — 지도의 교실 코드와 같아야 위치가 반영돼요.",
+            st.caption(f"{period}교시 · {row['과목']} 교실을 지도에 있는 장소 중에서 바로 바꿀 수 있어요.")
+            options = _room_options()
+            option_ids = [rid for rid, _ in options]
+            cur_room = str(row["교실위치"])
+            default_idx = option_ids.index(cur_room) if cur_room in option_ids else 0
+            chosen_label = st.selectbox(
+                "교실 선택", [label for _, label in options],
+                index=default_idx, key=f"room_edit_{sel_day}_{period}",
             )
+            new_room = option_ids[[label for _, label in options].index(chosen_label)]
             if st.button("저장", key=f"room_save_{sel_day}_{period}"):
-                save_room_override(teacher, sel_day, period, new_room.strip())
+                save_room_override(teacher, sel_day, period, new_room)
                 load_timetable.clear()
                 load_teacher_timetable.clear()
                 st.success("✅ 교실 위치를 수정했어요. (지도·시간표에 바로 반영돼요)")
