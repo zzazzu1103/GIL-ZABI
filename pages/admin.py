@@ -127,38 +127,53 @@ def show():
         st.markdown(f"#### 결과 ({len(view)}행)")
 
         if USE_SHEETS:
-            st.markdown("셀을 직접 클릭해 수정 후 **저장** 버튼을 누르세요.")
-            edited = st.data_editor(
-                view.reset_index(drop=True),
-                use_container_width=True,
-                num_rows="fixed",
-                key="admin_editor",
-            )
-            if st.button("💾 Google Sheets에 저장", type="primary"):
-                # 변경된 행 감지 후 업데이트
-                original = view.reset_index(drop=True)
-                changes = 0
-                for idx in range(len(edited)):
-                    for col in ["과목","교사명","교실위치","층"]:
-                        if str(edited.at[idx, col]) != str(original.at[idx, col]):
-                            # 원본 df에서 실제 row 번호 찾기
-                            mask = (
-                                (df["요일"]  == original.at[idx,"요일"])  &
-                                (df["교시"]  == original.at[idx,"교시"])  &
-                                (df["반"]    == original.at[idx,"반"])
-                            )
-                            real_idx = df[mask].index
-                            if len(real_idx):
-                                update_timetable_cell(
-                                    int(real_idx[0]) + 1, col,
-                                    str(edited.at[idx, col])
-                                )
-                                changes += 1
-                if changes:
-                    st.success(f"✅ {changes}개 셀 업데이트 완료!")
-                    st.cache_data.clear()
-                else:
-                    st.info("변경 사항이 없습니다.")
+            # st.data_editor 는 st.dataframe 과 같은 pyarrow 직렬화 경로를 타서
+            # 배포 서버(py3.14)에서 세그폴트를 일으키므로 사용하지 않는다.
+            view_reset = view.reset_index(drop=True)
+            _render_df_html(view_reset)
+
+            st.markdown("#### ✏️ 행 수정")
+            if view_reset.empty:
+                st.info("수정할 행이 없습니다.")
+            else:
+                row_labels = [
+                    f"{r['요일']} {int(r['교시'])}교시 · {r['반']} · {r['과목']} ({r['교사명']})"
+                    for _, r in view_reset.iterrows()
+                ]
+                sel_i = st.selectbox(
+                    "수정할 행 선택", range(len(row_labels)),
+                    format_func=lambda i: row_labels[i], key="admin_edit_row_sel",
+                )
+                sel_row = view_reset.iloc[sel_i]
+                with st.form("admin_edit_row_form"):
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        new_subject = st.text_input("과목", value=str(sel_row["과목"]))
+                        new_teacher = st.text_input("교사명", value=str(sel_row["교사명"]))
+                    with c2:
+                        new_room  = st.text_input("교실위치", value=str(sel_row["교실위치"]))
+                        new_floor = st.text_input("층", value=str(sel_row["층"]))
+                    if st.form_submit_button("💾 Google Sheets에 저장", type="primary"):
+                        mask = (
+                            (df["요일"] == sel_row["요일"]) &
+                            (df["교시"] == sel_row["교시"]) &
+                            (df["반"]   == sel_row["반"])
+                        )
+                        real_idx = df[mask].index
+                        changes = 0
+                        if len(real_idx):
+                            for col, new_val in (
+                                ("과목", new_subject), ("교사명", new_teacher),
+                                ("교실위치", new_room), ("층", new_floor),
+                            ):
+                                if new_val != str(sel_row[col]):
+                                    update_timetable_cell(int(real_idx[0]) + 1, col, new_val)
+                                    changes += 1
+                        if changes:
+                            st.success(f"✅ {changes}개 셀 업데이트 완료!")
+                            st.cache_data.clear()
+                        else:
+                            st.info("변경 사항이 없습니다.")
         else:
             # 로컬 모드: 읽기 전용 표시 + CSV 직접 수정 안내
             _render_df_html(view.reset_index(drop=True))
