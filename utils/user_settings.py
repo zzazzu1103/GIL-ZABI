@@ -11,20 +11,16 @@ import os
 import streamlit as st
 from datetime import datetime, timezone, timedelta
 
+from utils import gsheets
+
 KST = timezone(timedelta(hours=9))
 
 # 시간표 동기화용으로 이미 연결된 스프레드시트(secrets["sheets"]["timetable_id"])를
 # 그대로 재사용하고, 그 안에 user_settings 탭을 둔다.
 # 별도 시트를 쓰고 싶으면 secrets.toml 에 sheets.user_settings_id 를 추가하면 된다.
 SHEET_NAME = "user_settings"
-
-
-def _sheet_id():
-    try:
-        sheets = st.secrets["sheets"]
-        return sheets.get("user_settings_id") or sheets["timetable_id"]
-    except Exception:
-        return None
+_HEADER = ["email", "my_class", "tangu_map", "my_subjects",
+           "my_classes", "updated_at", "prefs"]
 
 SETTINGS_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "data", "user_settings.json"
@@ -39,90 +35,14 @@ DEFAULT_SETTINGS = {
 }
 
 
-# ── Google Sheets 헬퍼 ────────────────────────────────────────
-# 마지막 연결 실패 사유 (진단용). 비밀값은 담지 않고 예외 메시지만 저장한다.
-_last_error: str | None = None
-
-
-def _fail(msg: str):
-    global _last_error
-    _last_error = msg
-    return None
-
-
-def _get_client(readonly=True):
-    if "gcp_service_account" not in st.secrets:
-        return _fail("secrets.toml 에 [gcp_service_account] 섹션이 없어요.")
-    try:
-        import gspread
-        from google.oauth2.service_account import Credentials
-    except Exception as e:
-        # ImportError(미설치) 외에 native crypto 라이브러리 로드 실패(예:
-        # 환경별 cryptography/cffi 바이너리 불일치)도 폴백으로 처리한다.
-        return _fail(f"gspread/google-auth 로드 실패: {type(e).__name__}: {e}")
-    try:
-        scopes = (
-            ["https://www.googleapis.com/auth/spreadsheets.readonly",
-             "https://www.googleapis.com/auth/drive.readonly"]
-            if readonly else
-            ["https://www.googleapis.com/auth/spreadsheets"]
-        )
-        creds = Credentials.from_service_account_info(
-            st.secrets["gcp_service_account"], scopes=scopes
-        )
-        return gspread.authorize(creds)
-    except Exception as e:
-        return _fail(f"서비스 계정 인증 실패: {type(e).__name__}: {e}")
-
+# ── Google Sheets 헬퍼 (utils/gsheets.py 공용 클라이언트 사용) ──────
 
 def _get_worksheet(readonly=True):
-    sheet_id = _sheet_id()
-    if not sheet_id:
-        return _fail("secrets.toml 의 [sheets] 에 timetable_id (또는 user_settings_id) 가 없어요.")
-    gc = _get_client(readonly)
-    if not gc:
-        return None  # _get_client 가 이미 사유를 기록함
-    try:
-        sh = gc.open_by_key(sheet_id)
-    except Exception as e:
-        return _fail(
-            f"스프레드시트 열기 실패 (ID: {sheet_id[:6]}…{sheet_id[-4:]}): "
-            f"{type(e).__name__}: {e} — 서비스 계정 이메일이 이 시트에 편집자로 "
-            f"공유되어 있는지, ID가 정확한지 확인하세요."
-        )
-    try:
-        ws = sh.worksheet(SHEET_NAME)
-        global _last_error
-        _last_error = None
-        return ws
-    except Exception as e:
-        # user_settings 탭이 아직 없으면 쓰기 모드에서만 새로 만든다
-        # (읽기 전용 권한으로는 add_worksheet 이 실패하므로 그대로 None 반환)
-        if readonly:
-            return _fail(f"'{SHEET_NAME}' 탭이 아직 없어요 (읽기 전용이라 자동 생성 안 함): {e}")
-        try:
-            ws = sh.add_worksheet(title=SHEET_NAME, rows=1000, cols=7)
-            ws.append_row(
-                ["email", "my_class", "tangu_map", "my_subjects",
-                 "my_classes", "updated_at", "prefs"],
-                value_input_option="USER_ENTERED",
-            )
-            _last_error = None
-            return ws
-        except Exception as e2:
-            return _fail(f"'{SHEET_NAME}' 탭 자동 생성 실패: {type(e2).__name__}: {e2}")
+    return gsheets.open_worksheet(SHEET_NAME, _HEADER, readonly=readonly)
 
 
 def _find_row(ws, email: str):
-    """이메일로 행 번호(1-based) 반환. 없으면 None."""
-    try:
-        emails = ws.col_values(1)  # A열 전체
-        for i, e in enumerate(emails):
-            if e == email:
-                return i + 1  # gspread는 1-based
-        return None
-    except Exception:
-        return None
+    return gsheets.find_row(ws, email, col=1)
 
 
 # ── JSON 폴백 ─────────────────────────────────────────────────
@@ -156,7 +76,7 @@ def storage_backend() -> str:
 def storage_backend_detail() -> tuple[str, str | None]:
     """(백엔드, 실패 사유) — 사유는 sheets 연결에 실패했을 때만 채워진다."""
     backend = "sheets" if _get_worksheet(readonly=True) else "json"
-    return backend, (None if backend == "sheets" else _last_error)
+    return backend, (None if backend == "sheets" else gsheets.last_error())
 
 
 def load_user_settings(email: str) -> dict:
