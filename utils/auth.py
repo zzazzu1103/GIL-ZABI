@@ -13,7 +13,12 @@ import secrets
 import time as _time
 from datetime import datetime, timezone, timedelta
 
+from utils import gsheets
+
 KST = timezone(timedelta(hours=9))
+
+_SESSIONS_SHEET = "sessions"
+_SESSIONS_HEADER = ["sid", "user_json", "expires"]
 
 GOOGLE_AUTH_URL  = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -71,24 +76,68 @@ def _token_path(token: str) -> str:
     safe = "".join(c for c in token if c.isalnum() or c in "-_")
     return os.path.join(_TOKEN_DIR, f"{safe}.json")
 
+def _sessions_ws(readonly=True):
+    return gsheets.open_worksheet(_SESSIONS_SHEET, _SESSIONS_HEADER, readonly=readonly)
+
+
 def _save_session_token(token: str, user_data: dict):
+    expires = _time.time() + _TOKEN_TTL
+
+    # 로컬 파일: 같은(재시작 안 된) 컨테이너 안에서는 빠른 경로로 쓰인다.
     _ensure_token_dir()
     with open(_token_path(token), "w", encoding="utf-8") as f:
-        json.dump({"user": user_data, "expires": _time.time() + _TOKEN_TTL}, f, ensure_ascii=False)
+        json.dump({"user": user_data, "expires": expires}, f, ensure_ascii=False)
+
+    # Google Sheets: 컨테이너 재시작·재배포·슬립 후에도 로그인이 유지되도록
+    # 하는 실제 저장소. 실패해도(미연동 등) 로컬 파일만으로 계속 동작한다.
+    try:
+        ws = _sessions_ws(readonly=False)
+        if ws:
+            row = [token, json.dumps(user_data, ensure_ascii=False), str(expires)]
+            row_num = gsheets.find_row(ws, token, col=1)
+            if row_num:
+                ws.update(f"A{row_num}:C{row_num}", [row])
+            else:
+                ws.append_row(row, value_input_option="USER_ENTERED")
+    except Exception:
+        pass
+
 
 def _load_session_token(token: str) -> dict | None:
     path = _token_path(token)
-    if not os.path.exists(path):
-        return None
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            payload = json.load(f)
-        if _time.time() > payload.get("expires", 0):
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+            if _time.time() <= payload.get("expires", 0):
+                return payload.get("user")
             os.remove(path)
+        except Exception:
+            pass
+
+    # 로컬 파일에 없으면(컨테이너 재시작 등) Sheets 에서 복구를 시도하고,
+    # 성공하면 다음 요청을 위해 로컬에도 다시 캐시해 둔다.
+    try:
+        ws = _sessions_ws(readonly=True)
+        if not ws:
             return None
-        return payload.get("user")
+        row_num = gsheets.find_row(ws, token, col=1)
+        if not row_num:
+            return None
+        row = ws.row_values(row_num)
+        if len(row) < 3:
+            return None
+        expires = float(row[2])
+        if _time.time() > expires:
+            return None
+        user_data = json.loads(row[1])
+        _ensure_token_dir()
+        with open(_token_path(token), "w", encoding="utf-8") as f:
+            json.dump({"user": user_data, "expires": expires}, f, ensure_ascii=False)
+        return user_data
     except Exception:
         return None
+
 
 def _delete_session_token(token: str):
     path = _token_path(token)
@@ -97,6 +146,14 @@ def _delete_session_token(token: str):
             os.remove(path)
         except Exception:
             pass
+    try:
+        ws = _sessions_ws(readonly=False)
+        if ws:
+            row_num = gsheets.find_row(ws, token, col=1)
+            if row_num:
+                ws.update(f"C{row_num}", [["0"]])  # expires=0 → 다음 조회 시 만료 처리
+    except Exception:
+        pass
 
 def _cleanup_expired_tokens():
     try:

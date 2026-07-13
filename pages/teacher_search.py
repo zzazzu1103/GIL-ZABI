@@ -188,25 +188,27 @@ def show():
                     badge_html = '<span class="status-badge badge-next">🟢 다음 교시</span>'
 
                 room_label = room_display_name(str(row["교실위치"]))
-                st.markdown(f"""
-                <div class="card {card_cls}">
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <div>
-                            <div style="color:#9E9070;font-size:0.78rem;">{period}교시 · {time_str}</div>
-                            <div style="font-size:1.05rem;font-weight:700;margin-top:4px;">
-                                {row['과목']} — {room_label}
-                            </div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div style="font-size:1rem;font-weight:700;color:#7D6B2E;">
-                                📍 {row['교실위치']}
-                            </div>
-                            <div style="color:#9E9070;font-size:0.78rem;">{row['층']}층</div>
-                            {badge_html}
-                        </div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                # 배지가 없을 때(badge_html="") 이 줄이 빈 줄로 남으면 마크다운
+                # 파서가 HTML 블록을 중간에 끊고 그 뒤 들여쓰기를 코드블록으로
+                # 오인해 "</div>" 가 그대로 텍스트로 보이는 문제가 있어
+                # 줄바꿈 없는 한 줄짜리 문자열로 조립한다.
+                st.markdown(
+                    f'<div class="card {card_cls}">'
+                    f'<div style="display:flex;justify-content:space-between;align-items:center;">'
+                    f'<div>'
+                    f'<div style="color:#9E9070;font-size:0.78rem;">{period}교시 · {time_str}</div>'
+                    f'<div style="font-size:1.05rem;font-weight:700;margin-top:4px;">'
+                    f'{row["과목"]} — {room_label}</div>'
+                    f'</div>'
+                    f'<div style="text-align:right;">'
+                    f'<div style="font-size:1rem;font-weight:700;color:#7D6B2E;">📍 {row["교실위치"]}</div>'
+                    f'<div style="color:#9E9070;font-size:0.78rem;">{row["층"]}층</div>'
+                    f'{badge_html}'
+                    f'</div>'
+                    f'</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
 
     # ── 주간 전체 일정 ─────────────────────────────────────────────────────────
     with st.expander("📋 주간 전체 시간표 보기"):
