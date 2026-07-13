@@ -65,11 +65,30 @@ def auto_subject_color(subject) -> str:
 
 
 def subject_color(subject) -> str | None:
-    """표시 설정이 켜져 있으면 과목 색상(커스텀 우선), 꺼져 있으면 None."""
+    """과목 색상 표시를 켠 경우에만 색상 반환 (기본은 꺼짐 = 원래 디자인)."""
     prefs = get_prefs()
-    if not prefs.get("subject_colors", True):
+    if not prefs.get("subject_colors", False):
         return None
     return prefs.get("color_map", {}).get(str(subject)) or auto_subject_color(subject)
+
+
+def teacher_subjects(teacher) -> str:
+    """선생님이 실제로 가르치는 과목 전체 (예: '화작 · 학특 · 논술').
+
+    teachers.csv 담당과목은 한 과목만 적혀 있어, 교사 시간표에서
+    선택과목 코드를 제외한 실제 과목들을 모아 표시한다.
+    """
+    try:
+        ttt = load_teacher_timetable()
+        subs = [s for s in ttt[ttt["교사명"] == teacher]["과목"].unique()
+                if not is_elective(s)]
+        if subs:
+            return " · ".join(sorted(subs))
+    except FileNotFoundError:
+        pass
+    t = load_teachers()
+    row = t[t["교사명"] == teacher]
+    return str(row.iloc[0]["담당과목"]) if not row.empty else ""
 
 
 def week_dates(now=None) -> dict:
