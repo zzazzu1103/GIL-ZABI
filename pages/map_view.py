@@ -13,7 +13,7 @@ KST = timezone(timedelta(hours=9))
 from utils.helpers import (
     load_timetable, get_current_period, get_next_period,
     get_current_day, get_personalized_timetable, PERIODS, sort_classes,
-    is_elective, elective_subject_name,
+    is_unselected_elective, is_elective, elective_subject_name,
 )
 from utils.floorplan import render_map, find_room_floor, room_display_name
 
@@ -34,13 +34,14 @@ def _class_highlight_entries(df, sel_class, cur_day, cur_period, nxt_period):
             continue
         r = row.iloc[0]
         rid = str(r["교실위치"])
+        unselected = is_unselected_elective(r["과목"])
         entries.append({
             "status": status, "period": period,
-            "rid": rid,
+            "rid": None if unselected else rid,
             "subject": r["과목"],
-            "teacher": r["교사명"],
-            "floor": find_room_floor(rid, int(r["층"])),
-            "unselected": False,
+            "teacher": None if unselected else r["교사명"],
+            "floor": None if unselected else find_room_floor(rid, int(r["층"])),
+            "unselected": unselected,
         })
     return entries
 
