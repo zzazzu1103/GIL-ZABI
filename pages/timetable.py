@@ -265,8 +265,6 @@ def show_body():
         show_all   = st.checkbox("전체 요일", value=False)
         show_grade = st.checkbox("학년 전체 시간표", value=False)
 
-    st.markdown("---")
-
     if show_grade:
         _render_grade_grid(df, sel_grade, sel_day)
         return

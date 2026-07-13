@@ -48,6 +48,7 @@ def show():
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ── 시간표 (timetable.py 본문 통합) ─────────────────────────────
+    st.markdown("---")
     st.markdown("### 📅 시간표")
 
     from pages.timetable import show_body
