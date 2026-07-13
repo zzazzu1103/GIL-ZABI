@@ -82,10 +82,15 @@ def teacher_subjects(teacher) -> str:
     NON_MAIN = {"학특", "자율", "동아리", "스생", "스생1", "자치", "진로"}
     try:
         ttt = load_teacher_timetable()
-        subs = [s for s in ttt[ttt["교사명"] == teacher]["과목"].unique()
-                if not is_elective(s) and s not in NON_MAIN]
+        codes = [s for s in ttt[ttt["교사명"] == teacher]["과목"].unique()
+                 if s not in NON_MAIN]
+        subs = []
+        for code in codes:
+            # 선택과목은 (코드, 교사) 매핑의 실제 과목명으로 치환
+            subs.append(elective_subject_name(code, teacher) if is_elective(code) else code)
+        subs = sorted(set(s for s in subs if s))
         if subs:
-            return " · ".join(sorted(subs))
+            return " · ".join(subs)
     except FileNotFoundError:
         pass
     t = load_teachers()
