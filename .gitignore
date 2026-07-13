@@ -1,3 +1,5 @@
 __pycache__/
 *.pyc
 .streamlit/secrets.toml
+data/user_settings.json
+data/_sessions/
