@@ -6,7 +6,7 @@ from utils.helpers import (
     get_next_period, get_current_day, PERIODS, get_teacher_location,
     load_teacher_timetable, teacher_subjects,
 )
-from utils.floorplan import render_map, find_room_floor, room_display_name
+from utils.floorplan import render_map, find_room_floor, room_display_name, is_outdoor_room
 
 def show():
     st.markdown("""
@@ -115,9 +115,11 @@ def show():
                                selected_teacher, cur_day, cur_period)
     is_teaching = loc["상태"] == "수업중"
     loc_rid   = str(loc["교실"])
+    is_outdoor = is_outdoor_room(loc_rid)
     loc_floor = find_room_floor(loc_rid)
     if loc_floor is None:
         loc_floor = int(loc["층"]) if str(loc["층"]).isdigit() and 1 <= int(loc["층"]) <= 5 else 2
+    loc_floor_label = "🌳 야외" if is_outdoor else f"{loc_floor}층"
 
     if not cur_day:
         when_str, note = "주말", "오늘은 수업이 없어요 · 교무실 기준 위치예요"
@@ -146,19 +148,22 @@ def show():
             f'<span class="status-badge {badge_cls}">{status_icon} {status_label}</span>'
             f'<div style="font-size:1.4rem; font-weight:900; color:{status_color}; margin:10px 0 4px;">'
             f'📍 {room_display_name(loc_rid)}</div>'
-            f'<div style="color:#9E9070; font-size:0.85rem;">{loc_floor}층</div>'
+            f'<div style="color:#9E9070; font-size:0.85rem;">{loc_floor_label}</div>'
             f'{extra}</div>',
             unsafe_allow_html=True,
         )
 
     # ── 지도에서 위치 보기 ─────────────────────────────────────────────────────
-    st.markdown(f"### 🗺️ 지도에서 위치 보기 — {loc_floor}층")
     st.caption(
         f"📍 {selected_teacher} 선생님은 지금 "
         + (f"**{room_display_name(loc_rid)}**에서 수업 중이에요."
            if is_teaching else f"**{room_display_name(loc_rid)}**에 계세요.")
     )
-    render_map(loc_floor, {loc_rid: "teacher"})
+    if is_outdoor:
+        st.info(f"🌳 **{room_display_name(loc_rid)}**은(는) 야외 장소라 건물 지도에는 표시되지 않아요.")
+    else:
+        st.markdown(f"### 🗺️ 지도에서 위치 보기 — {loc_floor}층")
+        render_map(loc_floor, {loc_rid: "teacher"})
 
     # ── 오늘 하루 일정 ─────────────────────────────────────────────────────────
     if cur_day:
@@ -189,6 +194,7 @@ def show():
                     badge_html = '<span class="status-badge badge-next">🟢 다음 교시</span>'
 
                 room_label = room_display_name(str(row["교실위치"]))
+                floor_label = "🌳 야외" if is_outdoor_room(row["교실위치"]) else f"{row['층']}층"
                 # 배지가 없을 때(badge_html="") 이 줄이 빈 줄로 남으면 마크다운
                 # 파서가 HTML 블록을 중간에 끊고 그 뒤 들여쓰기를 코드블록으로
                 # 오인해 "</div>" 가 그대로 텍스트로 보이는 문제가 있어
@@ -203,7 +209,7 @@ def show():
                     f'</div>'
                     f'<div style="text-align:right;">'
                     f'<div style="font-size:1rem;font-weight:700;color:#7D6B2E;">📍 {row["교실위치"]}</div>'
-                    f'<div style="color:#9E9070;font-size:0.78rem;">{row["층"]}층</div>'
+                    f'<div style="color:#9E9070;font-size:0.78rem;">{floor_label}</div>'
                     f'{badge_html}'
                     f'</div>'
                     f'</div>'
@@ -225,8 +231,9 @@ def show():
                 if not day_df.empty:
                     st.markdown(f"**{day}요일**")
                     for _, r in day_df.iterrows():
+                        floor_txt = "야외" if is_outdoor_room(r["교실위치"]) else f"{r['층']}층"
                         st.markdown(
                             f"　{int(r['교시'])}교시 · {r['과목']} · "
                             f"{room_display_name(str(r['교실위치']))} · "
-                            f"📍{r['교실위치']}({r['층']}층)"
+                            f"📍{r['교실위치']}({floor_txt})"
                         )

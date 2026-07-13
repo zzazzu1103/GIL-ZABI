@@ -11,18 +11,23 @@ from utils.helpers import (
     is_elective, elective_subject_name, load_teacher_timetable,
     subject_color, day_label,
 )
-from utils.floorplan import room_display_name, ROOM_NAME, ROOM_FLOOR
+from utils.floorplan import room_display_name, ROOM_NAME, ROOM_FLOOR, is_outdoor_room
 from utils.room_overrides import save_room_override
 
 
 def _room_options():
-    """지도에 실제로 존재하는 교실 id 목록 (층 → 이름 순 정렬).
+    """수업 위치로 고를 수 있는 전체 장소 목록 (실내는 층 → 이름 순, 야외는 맨 뒤).
 
     교실 위치 수정은 이 목록에서만 고를 수 있게 해서, 지도의 id 와
     어긋나는 값을 저장해 지도에 아무것도 표시되지 않는 상황을 막는다.
+    실외 장소(운동장 등)는 건물 지도엔 안 나오지만 목록엔 선택 가능하게 둔다.
     """
-    ids = sorted(ROOM_NAME, key=lambda rid: (ROOM_FLOOR.get(rid, 0), ROOM_NAME[rid]))
-    return [(rid, f"{ROOM_NAME[rid]} · {rid} ({ROOM_FLOOR.get(rid, '?')}층)") for rid in ids]
+    ids = sorted(ROOM_NAME, key=lambda rid: (ROOM_FLOOR.get(rid, 99), ROOM_NAME[rid]))
+    opts = []
+    for rid in ids:
+        loc = "야외" if is_outdoor_room(rid) else f"{ROOM_FLOOR.get(rid, '?')}층"
+        opts.append((rid, f"{ROOM_NAME[rid]} · {rid} ({loc})"))
+    return opts
 
 
 def _subject_display(subject, teacher) -> str:
@@ -56,7 +61,9 @@ def _render_day_cards(sub: pd.DataFrame, sel_day: str, cur_day, cur_period, nxt_
                 badge_cls, badge_label = "badge-done", "⚫ 완료"
 
         floor_colors = {1:"#2E6B7D", 2:"#6B2E7D", 3:"#FF7B72", 4:"#C2852A", 5:"#059669"}
-        floor_color = floor_colors.get(int(row["층"]), "#9E9070")
+        is_outdoor = is_outdoor_room(row["교실위치"])
+        floor_color = "#5C7A3E" if is_outdoor else floor_colors.get(int(row["층"]), "#9E9070")
+        floor_label = "🌳 야외" if is_outdoor else f"{row['층']}층"
 
         # 선택과목인데 아직 선생님을 고르지 않았으면 교사/위치를 표시하지 않음
         if is_unselected_elective(row["과목"]):
@@ -114,7 +121,7 @@ def _render_day_cards(sub: pd.DataFrame, sel_day: str, cur_day, cur_period, nxt_
                     <div style="font-size:1rem; font-weight:700; color:{floor_color};">
                         📍 {row['교실위치']}
                     </div>
-                    <div style="font-size:0.78rem; color:#9E9070; margin:2px 0 6px;">{row['층']}층</div>
+                    <div style="font-size:0.78rem; color:#9E9070; margin:2px 0 6px;">{floor_label}</div>
                     <span class="status-badge {badge_cls}">{badge_label}</span>
                 </div>
             </div>
@@ -166,7 +173,9 @@ def _render_teacher_day_cards(teacher: str, sub: pd.DataFrame, sel_day: str,
             continue
 
         floor_colors = {1: "#2E6B7D", 2: "#6B2E7D", 3: "#FF7B72", 4: "#C2852A", 5: "#059669"}
-        floor_color = floor_colors.get(int(row["층"]), "#9E9070")
+        is_outdoor = is_outdoor_room(row["교실위치"])
+        floor_color = "#5C7A3E" if is_outdoor else floor_colors.get(int(row["층"]), "#9E9070")
+        floor_label = "🌳 야외" if is_outdoor else f"{row['층']}층"
         room_label = room_display_name(str(row["교실위치"]))
 
         accent = {"current": "#D97706", "next": "#059669"}.get(status)
@@ -194,7 +203,7 @@ def _render_teacher_day_cards(teacher: str, sub: pd.DataFrame, sel_day: str,
                 f'{room_label}</span></div></div>'
                 f'<div style="text-align:right; min-width:120px;">'
                 f'<div style="font-size:1rem; font-weight:700; color:{floor_color};">📍 {row["교실위치"]}</div>'
-                f'<div style="font-size:0.78rem; color:#9E9070; margin:2px 0 6px;">{row["층"]}층</div>'
+                f'<div style="font-size:0.78rem; color:#9E9070; margin:2px 0 6px;">{floor_label}</div>'
                 f'<span class="status-badge {badge_cls}">{badge_label}</span>'
                 f'</div></div></div>',
                 unsafe_allow_html=True,
@@ -215,7 +224,11 @@ def _render_teacher_day_cards(teacher: str, sub: pd.DataFrame, sel_day: str,
                     save_room_override(teacher, sel_day, period, new_room)
                     load_timetable.clear()
                     load_teacher_timetable.clear()
-                    st.success("✅ 교실 위치를 수정했어요. (지도·시간표에 바로 반영돼요)")
+                    # st.success 는 곧바로 st.rerun() 하면 화면에 뜨기 전에 사라지므로,
+                    # 재실행에도 살아남는 st.toast 로 안내하고 즉시 새로고침해
+                    # 방금 수정한 카드에도 바로 반영되게 한다.
+                    st.toast("✅ 교실 위치를 수정했어요. (지도·시간표에 바로 반영돼요)")
+                    st.rerun()
 
 
 def _render_teacher_pivot(ttt, teacher, days):
@@ -477,10 +490,12 @@ def show_body():
 
     st.markdown("---")
     st.markdown("#### 📊 오늘 이동 요약")
-    floors_visited = sub["층"].unique()
+    floors_visited = sorted(f for f in sub["층"].unique() if f != 0)   # 0=야외, 층 이동에서 제외
+    has_outdoor = (sub["층"] == 0).any()
     subjects = sub["과목"].unique()
     c1, c2, c3 = st.columns(3)
     with c1: st.metric("총 수업 수", f"{len(sub)}교시")
-    with c2: st.metric("이동하는 층", f"{len(floors_visited)}개 층",
-                       delta=f"{', '.join(map(str, sorted(floors_visited)))}층")
+    with c2: st.metric("이동하는 층", f"{len(floors_visited)}개 층"
+                       + (" + 야외" if has_outdoor else ""),
+                       delta=f"{', '.join(map(str, floors_visited))}층" if floors_visited else "야외 수업")
     with c3: st.metric("과목 수", f"{len(subjects)}과목")

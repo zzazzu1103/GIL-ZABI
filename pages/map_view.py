@@ -15,7 +15,7 @@ from utils.helpers import (
     get_current_day, get_personalized_timetable, PERIODS, sort_classes,
     is_unselected_elective, is_elective, elective_subject_name,
 )
-from utils.floorplan import render_map, find_room_floor, room_display_name
+from utils.floorplan import render_map, find_room_floor, room_display_name, is_outdoor_room
 
 
 def _class_highlight_entries(df, sel_class, cur_day, cur_period, nxt_period):
@@ -99,7 +99,7 @@ def show():
     view_key = (sel_class, cur_day, cur_period, nxt_period)
     if st.session_state.get("_map_last_view") != view_key:
         st.session_state["_map_last_view"] = view_key
-        located = [e for e in entries if e["floor"] is not None]
+        located = [e for e in entries if e["floor"] in (1, 2, 3, 4, 5)]
         if located:
             st.session_state["map_floor_sel"] = located[0]["floor"]
 
@@ -155,8 +155,14 @@ def show():
                     </div>
                     """, unsafe_allow_html=True)
                     continue
-                floor_note = "" if e["floor"] == sel_floor else \
-                    f'<span style="color:#B45309;font-size:0.75rem;"> · 지도에서 {e["floor"]}층을 선택하세요</span>'
+                is_outdoor = is_outdoor_room(e["rid"])
+                if is_outdoor:
+                    floor_note = '<span style="color:#5C7A3E;font-size:0.75rem;"> · 야외라 지도에는 안 나와요</span>'
+                    floor_text = "🌳 야외"
+                else:
+                    floor_note = "" if e["floor"] == sel_floor else \
+                        f'<span style="color:#B45309;font-size:0.75rem;"> · 지도에서 {e["floor"]}층을 선택하세요</span>'
+                    floor_text = f"{e['floor']}층"
 
                 st.markdown(f"""
                 <div class="card {card_cls}">
@@ -176,7 +182,7 @@ def show():
                       <div style="font-size:1.3rem;font-weight:900;color:#7D6B2E;">
                         📍 {room_display_name(e['rid'])}
                       </div>
-                      <div style="color:#9E9070;font-size:0.78rem;">{e['floor']}층{floor_note}</div>
+                      <div style="color:#9E9070;font-size:0.78rem;">{floor_text}{floor_note}</div>
                     </div>
                   </div>
                 </div>
