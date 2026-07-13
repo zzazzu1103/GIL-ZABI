@@ -35,7 +35,9 @@ def _get_client(readonly=True):
     try:
         import gspread
         from google.oauth2.service_account import Credentials
-    except ImportError:
+    except Exception:
+        # ImportError(미설치) 외에 native crypto 라이브러리 로드 실패(예:
+        # 환경별 cryptography/cffi 바이너리 불일치)도 폴백으로 처리한다.
         return None
     try:
         scopes = (
@@ -96,6 +98,12 @@ def _save_json(email: str, settings: dict):
 
 
 # ── 공개 API ──────────────────────────────────────────────────
+
+def storage_backend() -> str:
+    """현재 사용 중인 저장 방식. 'sheets' 가 아니면 로컬 파일이라
+    Streamlit Cloud 재배포·재시작 시 초기화된다."""
+    return "sheets" if _get_worksheet(readonly=True) else "json"
+
 
 def load_user_settings(email: str) -> dict:
     """이메일로 설정 불러오기. 시트 → JSON 폴백 순서."""
