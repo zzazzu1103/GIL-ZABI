@@ -10,8 +10,9 @@ from datetime import datetime, timezone, timedelta
 
 KST = timezone(timedelta(hours=9))
 
+from utils.auth import get_role
 from utils.helpers import (
-    load_timetable, get_current_period, get_next_period,
+    load_timetable, load_teacher_timetable, get_current_period, get_next_period,
     get_current_day, get_personalized_timetable, PERIODS, sort_classes,
     is_unselected_elective, is_elective, elective_subject_name,
 )
@@ -40,8 +41,37 @@ def _class_highlight_entries(df, sel_class, cur_day, cur_period, nxt_period):
             "rid": None if unselected else rid,
             "subject": r["과목"],
             "teacher": None if unselected else r["교사명"],
+            "who": None if unselected else f"{r['교사명']} 선생님",
             "floor": None if unselected else find_room_floor(rid, int(r["층"])),
             "unselected": unselected,
+        })
+    return entries
+
+
+def _teacher_highlight_entries(ttt, teacher, cur_day, cur_period, nxt_period):
+    """선생님 본인의 현재/다음 교시 수업 위치를 [(status, period, row)] 로 반환."""
+    entries = []
+    if not cur_day or not teacher:
+        return entries
+    sub = ttt[(ttt["교사명"] == teacher) & (ttt["요일"] == cur_day)]
+    if sub.empty:
+        return entries
+    for period, status in ((cur_period, "current"), (nxt_period, "next")):
+        if period is None:
+            continue
+        row = sub[sub["교시"] == period]
+        if row.empty:
+            continue
+        r = row.iloc[0]
+        rid = str(r["교실위치"])
+        entries.append({
+            "status": status, "period": period,
+            "rid": rid,
+            "subject": r["과목"],
+            "teacher": teacher,
+            "who": f"{room_display_name(rid)} 수업",
+            "floor": find_room_floor(rid, int(r["층"])),
+            "unselected": False,
         })
     return entries
 
@@ -60,6 +90,9 @@ def show():
     cur_period   = get_current_period(now)
     nxt_period   = get_next_period(now)
 
+    role = get_role()
+    my_teacher_name = st.session_state.get("my_teacher_name", "")
+
     # ── 필터 (반 → 층 순서: 반을 고르면 해당 수업 층으로 자동 이동) ──
     col1, col2, col3 = st.columns([2, 1, 2])
     with col1:
@@ -71,6 +104,15 @@ def show():
     with col3:
         st.markdown("<br>", unsafe_allow_html=True)
         show_hl = st.checkbox("현재/다음 교시 교실 강조", value=True)
+
+    show_teacher_mode = False
+    if role in ("teacher", "admin") and my_teacher_name:
+        show_teacher_mode = st.checkbox(
+            f"👩‍🏫 내 수업 보기 ({my_teacher_name} 선생님)", value=False, key="map_teacher_mode",
+            help="켜면 반 선택 대신 내 수업 위치를 강조해요.",
+        )
+        if show_teacher_mode:
+            st.caption("🏫 위의 반 선택은 무시되고 내 수업 위치만 강조돼요.")
 
     # ── 기준 시간: 기본은 '지금', 주말·방과후에는 요일·교시를 직접 선택 ──
     days = ["월", "화", "수", "목", "금"]
@@ -92,11 +134,17 @@ def show():
         cur_day, cur_period = custom_day, custom_period
         nxt_period = custom_period + 1 if custom_period + 1 in PERIODS else None
 
-    entries = _class_highlight_entries(timetable_df, sel_class, cur_day,
-                                       cur_period, nxt_period) if show_hl else []
+    if not show_hl:
+        entries = []
+    elif show_teacher_mode:
+        entries = _teacher_highlight_entries(load_teacher_timetable(), my_teacher_name,
+                                             cur_day, cur_period, nxt_period)
+    else:
+        entries = _class_highlight_entries(timetable_df, sel_class, cur_day,
+                                           cur_period, nxt_period)
 
-    # 반·시간이 바뀌면 현재(없으면 다음) 수업이 있는 층으로 자동 전환
-    view_key = (sel_class, cur_day, cur_period, nxt_period)
+    # 반·선생님·시간이 바뀌면 현재(없으면 다음) 수업이 있는 층으로 자동 전환
+    view_key = (sel_class, show_teacher_mode, cur_day, cur_period, nxt_period)
     if st.session_state.get("_map_last_view") != view_key:
         st.session_state["_map_last_view"] = view_key
         located = [e for e in entries if e["floor"] in (1, 2, 3, 4, 5)]
@@ -120,7 +168,7 @@ def show():
     render_map(sel_floor, highlight_map)
 
     # ── 현재/다음 수업 정보 패널 ──────────────────────────────────
-    if sel_class != "선택 안 함":
+    if sel_class != "선택 안 함" or show_teacher_mode:
         if not cur_day:
             st.info("오늘은 수업이 없는 날이에요. 위의 '⏰ 다른 시간의 수업 위치 보기'에서 요일·교시를 선택해보세요.")
         elif entries:
@@ -175,7 +223,7 @@ def show():
                           if is_elective(e['subject']) and elective_subject_name(e['subject'], e['teacher']) else ''}
                       </div>
                       <div style="color:#9E9070;font-size:0.85rem;">
-                        {e['teacher']} 선생님 · {time_str}
+                        {e['who']} · {time_str}
                       </div>
                     </div>
                     <div style="text-align:right;">
