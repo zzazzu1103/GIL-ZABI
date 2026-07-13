@@ -16,7 +16,7 @@ from datetime import datetime, timezone, timedelta
 import streamlit as st
 
 from utils import gsheets
-from utils.floorplan import find_room_floor
+from utils.floorplan import find_room_floor, is_outdoor_room
 
 KST = timezone(timedelta(hours=9))
 
@@ -114,7 +114,11 @@ def apply_room_overrides(df, teacher_col="교사명", day_col="요일",
         return df
     new_rooms = keys[mask].map(overrides)
     df.loc[mask, room_col] = new_rooms
-    new_floors = new_rooms.map(lambda r: find_room_floor(r))
+    # 실내 지도에 있는 방이면 그 층, 야외 장소면 0(층 없음), 그 외 알 수 없는
+    # 값이면 기존 층을 그대로 둔다.
+    new_floors = new_rooms.map(
+        lambda r: 0 if is_outdoor_room(r) else find_room_floor(r)
+    )
     has_floor = new_floors.notna()
     if has_floor.any():
         idx = new_floors[has_floor].index

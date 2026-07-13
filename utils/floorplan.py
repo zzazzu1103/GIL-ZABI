@@ -262,6 +262,20 @@ ROOM_FLOOR = {rm["id"]: f for f, rooms in FLOOR_ROOMS.items() for rm in rooms}
 ROOM_NAME  = {rm["id"]: rm["name"].replace("\n", " ")
               for rooms in FLOOR_ROOMS.values() for rm in rooms if rm["name"]}
 
+# ── 야외 수업 장소 ────────────────────────────────────────────────
+# 건물 지도(층별 평면도)에는 없지만 수업 위치로는 선택 가능한 공간.
+# 층 개념이 없어 ROOM_FLOOR 에는 넣지 않고, 실제 층 데이터는 0으로 표기한다.
+OUTDOOR_ROOMS = {
+    "운동장":     "운동장",
+    "철없는쉼터": "철없는 쉼터",
+    "농구배구장": "농구·배구장",
+}
+ROOM_NAME.update(OUTDOOR_ROOMS)
+
+
+def is_outdoor_room(rid) -> bool:
+    return str(rid) in OUTDOOR_ROOMS
+
 
 def find_room_floor(rid, default=None):
     return ROOM_FLOOR.get(str(rid), default)
