@@ -7,7 +7,7 @@ from utils.helpers import (
     load_timetable, get_current_period, get_next_period,
     get_current_day, PERIODS, period_status,
     STATUS_LABELS, STATUS_COLORS, sort_classes,
-    get_personalized_timetable, is_unselected_elective,
+    get_personalized_timetable,
     is_elective, elective_subject_name,
     subject_color, day_label,
 )
@@ -45,39 +45,6 @@ def _render_day_cards(sub: pd.DataFrame, sel_day: str, cur_day, cur_period, nxt_
 
         floor_colors = {1:"#2E6B7D", 2:"#6B2E7D", 3:"#FF7B72", 4:"#C2852A", 5:"#059669"}
         floor_color = floor_colors.get(int(row["층"]), "#9E9070")
-
-        # 선택과목인데 아직 선생님을 고르지 않았으면 교사/위치를 표시하지 않음
-        if is_unselected_elective(row["과목"]):
-            st.markdown(f"""
-            <div class="card {card_cls}">
-                <div style="display:flex; align-items:center; gap:16px;">
-                    <div style="min-width:56px; text-align:center;
-                                background:#FAF7F2; border-radius:10px; padding:10px 0;">
-                        <div style="font-size:1.4rem; font-weight:900; color:#7D6B2E;">{period}</div>
-                        <div style="font-size:0.65rem; color:#9E9070;">교시</div>
-                    </div>
-                    <div style="flex:1;">
-                        <div style="font-size:0.78rem; color:#9E9070; margin-bottom:4px;">{time_str}</div>
-                        <div style="font-size:1.15rem; font-weight:700; color:#3D3929;">
-                            {row['과목']}
-                            <span style="font-size:0.85rem; font-weight:400; color:#9E9070; margin-left:6px;">
-                                선택과목
-                            </span>
-                        </div>
-                    </div>
-                    <div style="text-align:right; min-width:150px;">
-                        <div style="font-size:0.85rem; font-weight:700; color:#B45309;">
-                            ❓ 선생님 미선택
-                        </div>
-                        <div style="font-size:0.75rem; color:#9E9070; margin:2px 0 6px;">
-                            개인 설정에서 선택하면<br>교실·층이 표시돼요
-                        </div>
-                        <span class="status-badge {badge_cls}">{badge_label}</span>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            continue
 
         st.markdown(f"""
         <div class="card {card_cls}">
@@ -119,8 +86,6 @@ def _render_pivot(df, sel_class, days):
     ) if len(df) else df.copy()
 
     def _cell(row):
-        if is_unselected_elective(row["과목"]):
-            return f"{row['과목']}\n(선생님 미선택)"
         return f"{_subject_display(row['과목'], row['교사명'])}\n{row['교사명']}\n{row['교실위치']}"
 
     # 배포 서버(py3.14)에서 st.dataframe 의 네이티브 직렬화가 프로세스를
@@ -191,7 +156,7 @@ def _render_grade_grid(df, grade, sel_day):
                 color = subject_color(val[0]) or "#fff"
                 cells.append(
                     f'<td style="{_TD} background:{color};">'
-                    f'<b>{val[0]}</b><br>'
+                    f'<b>{_subject_display(val[0], val[1])}</b><br>'
                     f'<span style="font-size:0.75rem;color:#6B6350;">{val[1]}</span></td>'
                 )
             else:
