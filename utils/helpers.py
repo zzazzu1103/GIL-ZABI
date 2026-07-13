@@ -136,7 +136,9 @@ def load_timetable():
     df = pd.read_csv(os.path.join(DATA_DIR, "timetable.csv"))
     df["교시"] = df["교시"].astype(int)
     df["층"]   = df["층"].astype(int)
-    return df
+    df["교실위치"] = df["교실위치"].astype(str)
+    from utils.room_overrides import apply_room_overrides
+    return apply_room_overrides(df)
 
 @st.cache_data(ttl=60)
 def load_teachers():
@@ -175,7 +177,8 @@ def load_teacher_timetable():
     df["교시"] = df["교시"].astype(int)
     df["층"]   = df["층"].astype(int)
     df["교실위치"] = df["교실위치"].astype(str)
-    return df
+    from utils.room_overrides import apply_room_overrides
+    return apply_room_overrides(df)
 
 @st.cache_data(ttl=60)
 def load_rooms():
