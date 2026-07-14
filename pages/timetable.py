@@ -69,13 +69,12 @@ def _render_day_cards(sub: pd.DataFrame, sel_day: str, cur_day, cur_period, nxt_
         if is_unselected_elective(row["과목"]):
             st.markdown(f"""
             <div class="card {card_cls}">
-                <div style="display:flex; align-items:center; gap:16px;">
-                    <div style="min-width:56px; text-align:center;
-                                background:#FAF7F2; border-radius:10px; padding:10px 0;">
+                <div class="card-row">
+                    <div class="period-chip">
                         <div style="font-size:1.4rem; font-weight:900; color:#7D6B2E;">{period}</div>
                         <div style="font-size:0.65rem; color:#9E9070;">교시</div>
                     </div>
-                    <div style="flex:1;">
+                    <div class="card-main">
                         <div style="font-size:0.78rem; color:#9E9070; margin-bottom:4px;">{time_str}</div>
                         <div style="font-size:1.15rem; font-weight:700; color:#3D3929;">
                             {row['과목']}
@@ -84,7 +83,7 @@ def _render_day_cards(sub: pd.DataFrame, sel_day: str, cur_day, cur_period, nxt_
                             </span>
                         </div>
                     </div>
-                    <div style="text-align:right; min-width:150px;">
+                    <div class="card-side" style="min-width:150px;">
                         <div style="font-size:0.85rem; font-weight:700; color:#B45309;">
                             ❓ 선생님 미선택
                         </div>
@@ -100,13 +99,12 @@ def _render_day_cards(sub: pd.DataFrame, sel_day: str, cur_day, cur_period, nxt_
 
         st.markdown(f"""
         <div class="card {card_cls}">
-            <div style="display:flex; align-items:center; gap:16px;">
-                <div style="min-width:56px; text-align:center;
-                            background:#FAF7F2; border-radius:10px; padding:10px 0;">
+            <div class="card-row">
+                <div class="period-chip">
                     <div style="font-size:1.4rem; font-weight:900; color:#7D6B2E;">{period}</div>
                     <div style="font-size:0.65rem; color:#9E9070;">교시</div>
                 </div>
-                <div style="flex:1;">
+                <div class="card-main">
                     <div style="font-size:0.78rem; color:#9E9070; margin-bottom:4px;">{time_str}</div>
                     <div style="font-size:1.15rem; font-weight:700; color:#3D3929;">
                         <span style="{f'background:{subject_color(row["과목"])}; padding:2px 10px; border-radius:6px;' if subject_color(row['과목']) else ''}">
@@ -117,7 +115,7 @@ def _render_day_cards(sub: pd.DataFrame, sel_day: str, cur_day, cur_period, nxt_
                         </span>
                     </div>
                 </div>
-                <div style="text-align:right; min-width:120px;">
+                <div class="card-side" style="min-width:120px;">
                     <div style="font-size:1rem; font-weight:700; color:{floor_color};">
                         📍 {row['교실위치']}
                     </div>
@@ -156,16 +154,15 @@ def _render_teacher_day_cards(teacher: str, sub: pd.DataFrame, sel_day: str,
         if row is None:
             st.markdown(
                 f'<div class="card {card_cls}">'
-                f'<div style="display:flex; align-items:center; gap:16px;">'
-                f'<div style="min-width:56px; text-align:center; background:#FAF7F2; '
-                f'border-radius:10px; padding:10px 0;">'
+                f'<div class="card-row">'
+                f'<div class="period-chip">'
                 f'<div style="font-size:1.4rem; font-weight:900; color:#7D6B2E;">{period}</div>'
                 f'<div style="font-size:0.65rem; color:#9E9070;">교시</div></div>'
-                f'<div style="flex:1;">'
+                f'<div class="card-main">'
                 f'<div style="font-size:0.78rem; color:#9E9070; margin-bottom:4px;">{time_str}</div>'
                 f'<div style="font-size:1.05rem; font-weight:700; color:#C9BFA9;">☕ 공강</div>'
                 f'</div>'
-                f'<div style="text-align:right; min-width:120px;">'
+                f'<div style="text-align:right; min-width:120px; flex-shrink:0;">'
                 f'<span class="status-badge {badge_cls}">{badge_label}</span>'
                 f'</div></div></div>',
                 unsafe_allow_html=True,
@@ -190,18 +187,17 @@ def _render_teacher_day_cards(teacher: str, sub: pd.DataFrame, sel_day: str,
             st.markdown(
                 f'<div style="background:{tint}; border-left:3px solid {accent or "transparent"}; '
                 f'border-radius:6px; padding:10px 14px; margin:-4px -4px 8px -4px;">'
-                f'<div style="display:flex; align-items:center; gap:16px;">'
-                f'<div style="min-width:56px; text-align:center; background:#FAF7F2; '
-                f'border-radius:10px; padding:10px 0;">'
+                f'<div class="card-row">'
+                f'<div class="period-chip">'
                 f'<div style="font-size:1.4rem; font-weight:900; color:#7D6B2E;">{period}</div>'
                 f'<div style="font-size:0.65rem; color:#9E9070;">교시</div></div>'
-                f'<div style="flex:1;">'
+                f'<div class="card-main">'
                 f'<div style="font-size:0.78rem; color:#9E9070; margin-bottom:4px;">{time_str}</div>'
                 f'<div style="font-size:1.15rem; font-weight:700; color:#3D3929;">'
                 f'{row["과목"]}'
                 f'<span style="font-size:0.85rem; font-weight:400; color:#9E9070; margin-left:6px;">'
                 f'{room_label}</span></div></div>'
-                f'<div style="text-align:right; min-width:120px;">'
+                f'<div class="card-side" style="min-width:120px;">'
                 f'<div style="font-size:1rem; font-weight:700; color:{floor_color};">📍 {row["교실위치"]}</div>'
                 f'<div style="font-size:0.78rem; color:#9E9070; margin:2px 0 6px;">{floor_label}</div>'
                 f'<span class="status-badge {badge_cls}">{badge_label}</span>'
@@ -267,7 +263,7 @@ def _render_teacher_pivot(ttt, teacher, days):
 
     head = "".join(f'<th style="{_TH}">{day_label(d)}</th>' for d in ordered_days)
     st.markdown(
-        f'<div style="overflow-x:auto;">'
+        f'<div class="tt-pivot" style="overflow-x:auto;">'
         f'<table style="{_TABLE}">'
         f'<thead><tr><th style="{_TH}"></th>{head}</tr></thead>'
         f'<tbody>{"".join(rows_html)}</tbody></table></div>',
@@ -318,7 +314,7 @@ def _render_pivot(df, sel_class, days):
 
     head = "".join(f'<th style="{_TH}">{day_label(d)}</th>' for d in ordered_days)
     st.markdown(
-        f'<div style="overflow-x:auto;">'
+        f'<div class="tt-pivot" style="overflow-x:auto;">'
         f'<table style="{_TABLE}">'
         f'<thead><tr><th style="{_TH}"></th>{head}</tr></thead>'
         f'<tbody>{"".join(rows_html)}</tbody></table></div>',
@@ -365,7 +361,7 @@ def _render_grade_grid(df, grade, sel_day):
 
     head = "".join(f'<th style="{_TH}">{c.split("-")[1]}반</th>' for c in class_cols)
     st.markdown(
-        f'<div style="overflow-x:auto;">'
+        f'<div class="tt-pivot" style="overflow-x:auto;">'
         f'<table style="{_TABLE}">'
         f'<thead><tr><th style="{_TH}">교시</th>{head}</tr></thead>'
         f'<tbody>{"".join(rows_html)}</tbody></table></div>',
@@ -473,18 +469,18 @@ def show_body():
 
     st.markdown(f"### {sel_class} · {day_label(sel_day)}요일 시간표")
 
-    col_l = st.columns(4)
     badges = [
         ("🔴 수업 중", "badge-current"),
         ("🟢 다음 교시", "badge-next"),
         ("⚫ 완료", "badge-done"),
         ("⚪ 예정", "badge-upcoming"),
     ]
-    for col, (label, cls) in zip(col_l, badges):
-        with col:
-            st.markdown(f'<span class="status-badge {cls}">{label}</span>', unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(
+        '<div class="badge-row" style="margin-bottom:10px;">'
+        + "".join(f'<span class="status-badge {cls}">{label}</span>' for label, cls in badges)
+        + "</div>",
+        unsafe_allow_html=True,
+    )
 
     _render_day_cards(sub, sel_day, cur_day, cur_period, nxt_period, now)
 

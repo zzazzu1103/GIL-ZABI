@@ -187,15 +187,15 @@ def show():
                 if e["unselected"]:
                     st.markdown(f"""
                     <div class="card {card_cls}">
-                      <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <div>
+                      <div class="card-split">
+                        <div class="card-main">
                           <span class="status-badge {badge_cls}">{badge_label}</span>
                           <div style="margin-top:8px;font-size:1.1rem;font-weight:700;">
                             {e['period']}교시 · {e['subject']} <span style="font-size:0.8rem;color:#9E9070;">선택과목</span>
                           </div>
                           <div style="color:#9E9070;font-size:0.85rem;">{time_str}</div>
                         </div>
-                        <div style="text-align:right;">
+                        <div class="card-side">
                           <div style="font-size:0.95rem;font-weight:700;color:#B45309;">❓ 선생님 미선택</div>
                           <div style="color:#9E9070;font-size:0.75rem;">개인 설정에서 선택하면<br>위치가 표시돼요</div>
                         </div>
@@ -214,8 +214,8 @@ def show():
 
                 st.markdown(f"""
                 <div class="card {card_cls}">
-                  <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div>
+                  <div class="card-split">
+                    <div class="card-main">
                       <span class="status-badge {badge_cls}">{badge_label}</span>
                       <div style="margin-top:8px;font-size:1.1rem;font-weight:700;">
                         {e['period']}교시 · {e['subject']}{
@@ -226,8 +226,8 @@ def show():
                         {e['who']} · {time_str}
                       </div>
                     </div>
-                    <div style="text-align:right;">
-                      <div style="font-size:1.3rem;font-weight:900;color:#7D6B2E;">
+                    <div class="card-side">
+                      <div class="loc-strong">
                         📍 {room_display_name(e['rid'])}
                       </div>
                       <div style="color:#9E9070;font-size:0.78rem;">{floor_text}{floor_note}</div>
@@ -241,19 +241,21 @@ def show():
 
     # ── 범례 ──────────────────────────────────────────────────────
     st.markdown("---")
-    col_l = st.columns(4)
     legends = [
         ("#FFFFFF", "일반 교실"),
         ("#D97706", "🔴 현재 수업"),
         ("#059669", "🟢 다음 교시"),
         ("#EFE9DC", "복도"),
     ]
-    for col, (color, label) in zip(col_l, legends):
-        with col:
-            st.markdown(
-                f'<div style="display:flex;align-items:center;gap:6px;font-size:0.8rem;">'
-                f'<div style="width:12px;height:12px;border-radius:2px;border:1px solid #B4A886;'
-                f'background:{color};flex-shrink:0;"></div>'
-                f'<span style="color:#9E9070;">{label}</span></div>',
-                unsafe_allow_html=True,
-            )
+    st.markdown(
+        '<div class="badge-row" style="gap:14px;">'
+        + "".join(
+            f'<span style="display:inline-flex;align-items:center;gap:6px;font-size:0.8rem;">'
+            f'<span style="width:12px;height:12px;border-radius:2px;border:1px solid #B4A886;'
+            f'background:{color};display:inline-block;flex-shrink:0;"></span>'
+            f'<span style="color:#9E9070;">{label}</span></span>'
+            for color, label in legends
+        )
+        + "</div>",
+        unsafe_allow_html=True,
+    )

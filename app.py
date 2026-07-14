@@ -13,7 +13,8 @@ st.set_page_config(
     page_title="길잡이 GIL-ZABI",
     page_icon="🗺️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    # auto: 데스크톱에서는 펼치고, 모바일에서는 접은 채로 시작
+    initial_sidebar_state="auto",
 )
 
 # ── OAuth 콜백 처리 (최상단) ──────────────────────────────────
@@ -102,6 +103,107 @@ h1, h2, h3, h4 { color: #3D3929 !important; }
     background: #F5F0E8 !important; color: #7D6B2E !important;
     border: 1px solid #D4C9A8 !important; font-weight: 600 !important;
     border-radius: 8px !important;
+}
+
+/* ── 공용 카드 내부 레이아웃 (모바일 재배치용) ──────────────── */
+.card-row   { display: flex; align-items: center; gap: 16px; }
+.card-split { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.card-main  { flex: 1; min-width: 0; }
+.card-side  { text-align: right; flex-shrink: 0; }
+.period-chip {
+    min-width: 56px; text-align: center; background: #FAF7F2;
+    border-radius: 10px; padding: 10px 0; flex-shrink: 0;
+}
+.badge-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.loc-strong { font-size: 1.3rem; font-weight: 900; color: #7D6B2E; }
+
+.home-card { text-align: center; }
+.home-card-icon  { font-size: 1.8rem; }
+.home-card-title { font-weight: 700; margin: 8px 0 4px; color: #3D3929; }
+.home-card-desc  { color: #9E9070; font-size: 0.82rem; }
+
+/* 메트릭 카드 — 신형(stMetric)·구형(metric-container) testid 모두 지원 */
+[data-testid="stMetric"] {
+    background: #fff; border: 1px solid #E0D8CC; border-radius: 10px; padding: 14px;
+}
+[data-testid="stMetricLabel"] p { color: #9E9070 !important; }
+
+/* ══ 모바일 (≤ 640px) ════════════════════════════════════════ */
+@media (max-width: 640px) {
+    .block-container,
+    div[data-testid="stMainBlockContainer"] {
+        padding: 4.25rem 0.9rem 3rem !important;
+    }
+    div[data-testid="stVerticalBlock"] { gap: 0.75rem; }
+
+    .main-header { padding: 14px 16px; margin-bottom: 14px; border-radius: 10px; }
+    .main-header h1 { font-size: 1.3rem; }
+    .main-header p  { font-size: 0.78rem; }
+    h2 { font-size: 1.25rem !important; }
+    h3 { font-size: 1.05rem !important; }
+    h4 { font-size: 0.95rem !important; }
+
+    /* 컬럼: 한 줄에 하나씩 길게 쌓이는 대신 2개씩 배치 */
+    div[data-testid="stHorizontalBlock"] {
+        flex-direction: row !important; flex-wrap: wrap !important; gap: 0.6rem !important;
+    }
+    div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"],
+    div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+        flex: 1 1 calc(50% - 0.6rem) !important;
+        min-width: calc(50% - 0.6rem) !important;
+        width: auto !important;
+    }
+    /* 검색창·넓은 카드가 든 컬럼은 한 줄 전체 사용 */
+    div[data-testid="stColumn"]:has(.stTextInput),
+    div[data-testid="stColumn"]:has(.mob-full),
+    div[data-testid="column"]:has(.stTextInput),
+    div[data-testid="column"]:has(.mob-full) {
+        flex-basis: 100% !important; min-width: 100% !important;
+    }
+    /* 홈 바로가기 카드는 한 줄에 하나씩 (가로형 카드로 전환) */
+    div[data-testid="stColumn"]:has([class*="st-key-home_card_"]),
+    div[data-testid="column"]:has([class*="st-key-home_card_"]) {
+        flex-basis: 100% !important; min-width: 100% !important;
+    }
+    /* 선택과목 코드 라벨은 내용 폭만 차지하고 셀렉트가 나머지를 채움 */
+    div[data-testid="stColumn"]:has(.elective-code),
+    div[data-testid="column"]:has(.elective-code) {
+        flex: 0 0 auto !important; min-width: 64px !important;
+    }
+    .home-card { display: flex; align-items: center; gap: 12px; text-align: left; }
+    .home-card-icon  { font-size: 1.5rem; }
+    .home-card-title { margin: 0 0 2px; }
+
+    [data-testid="stMetric"], [data-testid="metric-container"] { padding: 10px 12px; }
+    [data-testid="stMetricValue"] { font-size: 1.3rem !important; }
+    [data-testid="stMetricLabel"] p { font-size: 0.75rem !important; }
+    [data-testid="stMetricDelta"] { font-size: 0.72rem !important; }
+
+    .card { padding: 12px 14px; }
+    .card-row   { gap: 10px; flex-wrap: wrap; }
+    .card-split { flex-wrap: wrap; }
+    .period-chip { min-width: 46px; padding: 7px 0; }
+    .period-chip > div:first-child { font-size: 1.1rem !important; }
+    /* 오른쪽 정보(교실·층·상태 배지)는 카드 하단 한 줄로 이동 */
+    .card-side {
+        flex-basis: 100%; min-width: 0 !important; text-align: left !important;
+        display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px;
+        border-top: 1px dashed #E0D8CC; padding-top: 8px; margin-top: 2px;
+    }
+    .card-side br { display: none; }
+    .card-side > div { margin: 0 !important; }
+    .card-side .status-badge { margin-left: auto; }
+    .loc-strong { font-size: 1.05rem; }
+
+    .role-banner { padding: 6px 10px; font-size: 0.75rem; margin-bottom: 10px; }
+    .status-badge { font-size: 0.68rem; padding: 2px 8px; }
+    .stButton > button { padding: 0.45rem 1rem !important; font-size: 0.85rem !important; }
+
+    /* 주간·학년 피벗 표 압축 (가로 스크롤은 유지) */
+    .tt-pivot { -webkit-overflow-scrolling: touch; }
+    .tt-pivot table { border-spacing: 3px !important; }
+    .tt-pivot td { padding: 6px 4px !important; font-size: 0.74rem !important; border-radius: 8px !important; }
+    .tt-pivot th { padding: 6px 3px !important; font-size: 0.72rem !important; min-width: 38px !important; border-radius: 8px !important; }
 }
 </style>
 """, unsafe_allow_html=True)
