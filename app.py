@@ -6,6 +6,7 @@ import streamlit as st
 from utils.auth import (
     handle_oauth_callback, render_auth_sidebar,
     get_role, get_user, has_permission,
+    get_oauth_url, logout,
     ROLE_PAGES, ROLE_LABELS, ROLE_COLORS
 )
 
@@ -225,37 +226,47 @@ div[class*="st-key-mobile_nav"] { display: none; }
     .tt-pivot td { padding: 6px 4px !important; font-size: 0.74rem !important; border-radius: 8px !important; }
     .tt-pivot th { padding: 6px 3px !important; font-size: 0.72rem !important; min-width: 38px !important; border-radius: 8px !important; }
 
-    /* ── 하단 탭바 내비게이션 (앱처럼 아이콘 + 작은 라벨) ────── */
+    /* ── 하단 탭바 내비게이션 (앱처럼 아이콘 + 작은 라벨) ──────
+       주의: st-key-mobile_nav 클래스는 stVerticalBlock 자체에 붙으므로
+       이 요소를 직접 가로 flex 컨테이너로 만든다. */
     div[class*="st-key-mobile_nav"] {
-        display: block !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: stretch !important;
+        gap: 2px !important;
+        height: auto !important;
         position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999;
         background: #FFFFFF;
         border-top: 1px solid #E0D8CC;
         box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
-        padding: 4px 8px calc(4px + env(safe-area-inset-bottom, 0px));
+        padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px)) !important;
         margin: 0 !important;
     }
-    div[class*="st-key-mobile_nav"] div[data-testid="stVerticalBlock"] {
-        flex-direction: row !important; gap: 4px !important; height: auto !important;
+    div[class*="st-key-mobile_nav"] > div {
+        flex: 1 1 0 !important; min-width: 0 !important; width: auto !important;
     }
-    div[class*="st-key-mobile_nav"] div[data-testid="stVerticalBlock"] > div {
-        flex: 1 1 0 !important; min-width: 0 !important;
-    }
-    div[class*="st-key-mobile_nav"] .stButton > button {
-        width: 100% !important;
+    div[class*="st-key-mobile_nav"] .stButton,
+    div[class*="st-key-mobile_nav"] .stLinkButton { width: 100% !important; }
+    div[class*="st-key-mobile_nav"] .stButton > button,
+    div[class*="st-key-mobile_nav"] .stLinkButton > a {
+        display: block !important; width: 100% !important;
         background: transparent !important;
         color: #9E9070 !important;
         border: none !important; box-shadow: none !important;
+        text-decoration: none !important; text-align: center !important;
         font-size: 1.15rem !important; font-weight: 600 !important;
-        padding: 6px 2px !important; border-radius: 10px !important;
-        line-height: 1.35 !important;
+        padding: 5px 0 !important; border-radius: 10px !important;
+        line-height: 1.35 !important; min-height: 0 !important;
     }
-    div[class*="st-key-mobile_nav"] .stButton > button p {
-        line-height: 1.3; white-space: nowrap;
+    div[class*="st-key-mobile_nav"] .stButton > button p,
+    div[class*="st-key-mobile_nav"] .stLinkButton > a p {
+        line-height: 1.3; white-space: nowrap; font-size: inherit;
     }
-    div[class*="st-key-mobile_nav"] .stButton > button small { font-size: 0.62rem; }
+    div[class*="st-key-mobile_nav"] .stButton > button small,
+    div[class*="st-key-mobile_nav"] .stLinkButton > a small { font-size: 0.62rem; }
     div[class*="st-key-mobile_nav"] .stButton > button:hover,
-    div[class*="st-key-mobile_nav"] .stButton > button:active {
+    div[class*="st-key-mobile_nav"] .stButton > button:active,
+    div[class*="st-key-mobile_nav"] .stLinkButton > a:hover {
         background: #F5F0E8 !important; color: #7D6B2E !important;
     }
     /* 현재 페이지 강조 */
@@ -338,3 +349,12 @@ with st.container(key="mobile_nav"):
             if p != page:
                 st.session_state["nav_target"] = p
                 st.rerun()
+
+    # 로그인/로그아웃 탭
+    if get_user():
+        if st.button("🚪  \n:small[로그아웃]", key="mnav_logout", use_container_width=True):
+            logout()
+    else:
+        oauth_url = get_oauth_url()
+        if oauth_url:
+            st.link_button("🔐  \n:small[로그인]", oauth_url, use_container_width=True)
