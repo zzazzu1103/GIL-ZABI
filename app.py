@@ -123,28 +123,6 @@ h1, h2, h3, h4 { color: #3D3929 !important; }
 .home-card-title { font-weight: 700; margin: 8px 0 4px; color: #3D3929; }
 .home-card-desc  { color: #9E9070; font-size: 0.82rem; }
 
-/* 메트릭 카드 — 신형(stMetric)·구형(metric-container) testid 모두 지원 */
-[data-testid="stMetric"] {
-    background: #fff; border: 1px solid #E0D8CC; border-radius: 10px; padding: 14px;
-}
-[data-testid="stMetricLabel"] p { color: #9E9070 !important; }
-
-/* ── 나란히 놓인 메트릭·카드는 높이를 맞춘다 ─────────────────── */
-div[data-testid="stHorizontalBlock"] { align-items: stretch; }
-div[data-testid="stColumn"] > div[data-testid="stVerticalBlock"],
-div[data-testid="column"]  > div[data-testid="stVerticalBlock"] { height: 100%; }
-div[data-testid="stVerticalBlock"] > div:has([data-testid="stMetric"]),
-div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card),
-div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlockBorderWrapper"]:has([class*="st-key-home_card_"]) {
-    flex: 1 1 auto;
-}
-[data-testid="stMetric"] { height: 100%; box-sizing: border-box; }
-div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card) [data-testid="stMarkdown"],
-div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card) [data-testid="stMarkdown"] > div,
-div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card) .card {
-    height: 100%; box-sizing: border-box;
-}
-
 /* 모바일 하단 내비게이션 — 데스크톱에서는 숨김 (미디어쿼리에서 표시) */
 div[class*="st-key-mobile_nav"] { display: none; }
 
@@ -195,10 +173,29 @@ div[class*="st-key-mobile_nav"] { display: none; }
     .home-card-icon  { font-size: 1.5rem; }
     .home-card-title { margin: 0 0 2px; }
 
-    [data-testid="stMetric"], [data-testid="metric-container"] { padding: 10px 12px; }
+    /* 메트릭: 모바일에서만 카드 형태 + 압축 (데스크톱은 기존 디자인 유지) */
+    [data-testid="stMetric"], [data-testid="metric-container"] {
+        background: #fff; border: 1px solid #E0D8CC; border-radius: 10px;
+        padding: 10px 12px; height: 100%; box-sizing: border-box;
+    }
     [data-testid="stMetricValue"] { font-size: 1.3rem !important; }
-    [data-testid="stMetricLabel"] p { font-size: 0.75rem !important; }
+    [data-testid="stMetricLabel"] p { color: #9E9070 !important; font-size: 0.75rem !important; }
     [data-testid="stMetricDelta"] { font-size: 0.72rem !important; }
+
+    /* 나란히 놓인 메트릭·카드 높이 맞춤 (모바일 전용) */
+    div[data-testid="stHorizontalBlock"] { align-items: stretch; }
+    div[data-testid="stColumn"] > div[data-testid="stVerticalBlock"],
+    div[data-testid="column"]  > div[data-testid="stVerticalBlock"] { height: 100%; }
+    div[data-testid="stVerticalBlock"] > div:has([data-testid="stMetric"]),
+    div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card),
+    div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlockBorderWrapper"]:has([class*="st-key-home_card_"]) {
+        flex: 1 1 auto;
+    }
+    div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card) [data-testid="stMarkdown"],
+    div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card) [data-testid="stMarkdown"] > div,
+    div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card) .card {
+        height: 100%; box-sizing: border-box;
+    }
 
     .card { padding: 12px 14px; }
     .card-row   { gap: 10px; flex-wrap: wrap; }
