@@ -33,6 +33,10 @@ section[data-testid="stSidebar"] {
 }
 section[data-testid="stSidebar"] * { color: #3D3929 !important; }
 
+/* pages/ 폴더 기반 스트림릿 기본 내비게이션(중복 메뉴)은 숨기고
+   위 사이드바 라디오 메뉴만 사용한다. */
+div[data-testid="stSidebarNav"] { display: none; }
+
 .main-header {
     background: #fff;
     border: 1px solid #E0D8CC;
