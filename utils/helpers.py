@@ -131,9 +131,23 @@ def sort_classes(class_list: list) -> list:
     return sorted(class_list, key=_key)
 
 
+def _sheets_configured() -> bool:
+    try:
+        return "gcp_service_account" in st.secrets and "sheets" in st.secrets
+    except Exception:
+        return False
+
+
 @st.cache_data(ttl=60)
 def load_timetable():
-    df = pd.read_csv(os.path.join(DATA_DIR, "timetable.csv"))
+    if _sheets_configured():
+        try:
+            from utils.sheets_sync import load_timetable_sheets
+            df = load_timetable_sheets()
+        except Exception:
+            df = pd.read_csv(os.path.join(DATA_DIR, "timetable.csv"))
+    else:
+        df = pd.read_csv(os.path.join(DATA_DIR, "timetable.csv"))
     df["교시"] = df["교시"].astype(int)
     df["층"]   = df["층"].astype(int)
     df["교실위치"] = df["교실위치"].astype(str)
