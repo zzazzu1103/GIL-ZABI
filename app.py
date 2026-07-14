@@ -6,6 +6,7 @@ import streamlit as st
 from utils.auth import (
     handle_oauth_callback, render_auth_sidebar,
     get_role, get_user, has_permission,
+    get_oauth_url, logout,
     ROLE_PAGES, ROLE_LABELS, ROLE_COLORS
 )
 
@@ -122,28 +123,6 @@ h1, h2, h3, h4 { color: #3D3929 !important; }
 .home-card-title { font-weight: 700; margin: 8px 0 4px; color: #3D3929; }
 .home-card-desc  { color: #9E9070; font-size: 0.82rem; }
 
-/* 메트릭 카드 — 신형(stMetric)·구형(metric-container) testid 모두 지원 */
-[data-testid="stMetric"] {
-    background: #fff; border: 1px solid #E0D8CC; border-radius: 10px; padding: 14px;
-}
-[data-testid="stMetricLabel"] p { color: #9E9070 !important; }
-
-/* ── 나란히 놓인 메트릭·카드는 높이를 맞춘다 ─────────────────── */
-div[data-testid="stHorizontalBlock"] { align-items: stretch; }
-div[data-testid="stColumn"] > div[data-testid="stVerticalBlock"],
-div[data-testid="column"]  > div[data-testid="stVerticalBlock"] { height: 100%; }
-div[data-testid="stVerticalBlock"] > div:has([data-testid="stMetric"]),
-div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card),
-div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlockBorderWrapper"]:has([class*="st-key-home_card_"]) {
-    flex: 1 1 auto;
-}
-[data-testid="stMetric"] { height: 100%; box-sizing: border-box; }
-div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card) [data-testid="stMarkdown"],
-div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card) [data-testid="stMarkdown"] > div,
-div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card) .card {
-    height: 100%; box-sizing: border-box;
-}
-
 /* 모바일 하단 내비게이션 — 데스크톱에서는 숨김 (미디어쿼리에서 표시) */
 div[class*="st-key-mobile_nav"] { display: none; }
 
@@ -194,10 +173,29 @@ div[class*="st-key-mobile_nav"] { display: none; }
     .home-card-icon  { font-size: 1.5rem; }
     .home-card-title { margin: 0 0 2px; }
 
-    [data-testid="stMetric"], [data-testid="metric-container"] { padding: 10px 12px; }
+    /* 메트릭: 모바일에서만 카드 형태 + 압축 (데스크톱은 기존 디자인 유지) */
+    [data-testid="stMetric"], [data-testid="metric-container"] {
+        background: #fff; border: 1px solid #E0D8CC; border-radius: 10px;
+        padding: 10px 12px; height: 100%; box-sizing: border-box;
+    }
     [data-testid="stMetricValue"] { font-size: 1.3rem !important; }
-    [data-testid="stMetricLabel"] p { font-size: 0.75rem !important; }
+    [data-testid="stMetricLabel"] p { color: #9E9070 !important; font-size: 0.75rem !important; }
     [data-testid="stMetricDelta"] { font-size: 0.72rem !important; }
+
+    /* 나란히 놓인 메트릭·카드 높이 맞춤 (모바일 전용) */
+    div[data-testid="stHorizontalBlock"] { align-items: stretch; }
+    div[data-testid="stColumn"] > div[data-testid="stVerticalBlock"],
+    div[data-testid="column"]  > div[data-testid="stVerticalBlock"] { height: 100%; }
+    div[data-testid="stVerticalBlock"] > div:has([data-testid="stMetric"]),
+    div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card),
+    div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlockBorderWrapper"]:has([class*="st-key-home_card_"]) {
+        flex: 1 1 auto;
+    }
+    div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card) [data-testid="stMarkdown"],
+    div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card) [data-testid="stMarkdown"] > div,
+    div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card) .card {
+        height: 100%; box-sizing: border-box;
+    }
 
     .card { padding: 12px 14px; }
     .card-row   { gap: 10px; flex-wrap: wrap; }
@@ -225,37 +223,47 @@ div[class*="st-key-mobile_nav"] { display: none; }
     .tt-pivot td { padding: 6px 4px !important; font-size: 0.74rem !important; border-radius: 8px !important; }
     .tt-pivot th { padding: 6px 3px !important; font-size: 0.72rem !important; min-width: 38px !important; border-radius: 8px !important; }
 
-    /* ── 하단 탭바 내비게이션 (앱처럼 아이콘 + 작은 라벨) ────── */
+    /* ── 하단 탭바 내비게이션 (앱처럼 아이콘 + 작은 라벨) ──────
+       주의: st-key-mobile_nav 클래스는 stVerticalBlock 자체에 붙으므로
+       이 요소를 직접 가로 flex 컨테이너로 만든다. */
     div[class*="st-key-mobile_nav"] {
-        display: block !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: stretch !important;
+        gap: 2px !important;
+        height: auto !important;
         position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999;
         background: #FFFFFF;
         border-top: 1px solid #E0D8CC;
         box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
-        padding: 4px 8px calc(4px + env(safe-area-inset-bottom, 0px));
+        padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px)) !important;
         margin: 0 !important;
     }
-    div[class*="st-key-mobile_nav"] div[data-testid="stVerticalBlock"] {
-        flex-direction: row !important; gap: 4px !important; height: auto !important;
+    div[class*="st-key-mobile_nav"] > div {
+        flex: 1 1 0 !important; min-width: 0 !important; width: auto !important;
     }
-    div[class*="st-key-mobile_nav"] div[data-testid="stVerticalBlock"] > div {
-        flex: 1 1 0 !important; min-width: 0 !important;
-    }
-    div[class*="st-key-mobile_nav"] .stButton > button {
-        width: 100% !important;
+    div[class*="st-key-mobile_nav"] .stButton,
+    div[class*="st-key-mobile_nav"] .stLinkButton { width: 100% !important; }
+    div[class*="st-key-mobile_nav"] .stButton > button,
+    div[class*="st-key-mobile_nav"] .stLinkButton > a {
+        display: block !important; width: 100% !important;
         background: transparent !important;
         color: #9E9070 !important;
         border: none !important; box-shadow: none !important;
+        text-decoration: none !important; text-align: center !important;
         font-size: 1.15rem !important; font-weight: 600 !important;
-        padding: 6px 2px !important; border-radius: 10px !important;
-        line-height: 1.35 !important;
+        padding: 5px 0 !important; border-radius: 10px !important;
+        line-height: 1.35 !important; min-height: 0 !important;
     }
-    div[class*="st-key-mobile_nav"] .stButton > button p {
-        line-height: 1.3; white-space: nowrap;
+    div[class*="st-key-mobile_nav"] .stButton > button p,
+    div[class*="st-key-mobile_nav"] .stLinkButton > a p {
+        line-height: 1.3; white-space: nowrap; font-size: inherit;
     }
-    div[class*="st-key-mobile_nav"] .stButton > button small { font-size: 0.62rem; }
+    div[class*="st-key-mobile_nav"] .stButton > button small,
+    div[class*="st-key-mobile_nav"] .stLinkButton > a small { font-size: 0.62rem; }
     div[class*="st-key-mobile_nav"] .stButton > button:hover,
-    div[class*="st-key-mobile_nav"] .stButton > button:active {
+    div[class*="st-key-mobile_nav"] .stButton > button:active,
+    div[class*="st-key-mobile_nav"] .stLinkButton > a:hover {
         background: #F5F0E8 !important; color: #7D6B2E !important;
     }
     /* 현재 페이지 강조 */
@@ -338,3 +346,12 @@ with st.container(key="mobile_nav"):
             if p != page:
                 st.session_state["nav_target"] = p
                 st.rerun()
+
+    # 로그인/로그아웃 탭
+    if get_user():
+        if st.button("🚪  \n:small[로그아웃]", key="mnav_logout", use_container_width=True):
+            logout()
+    else:
+        oauth_url = get_oauth_url()
+        if oauth_url:
+            st.link_button("🔐  \n:small[로그인]", oauth_url, use_container_width=True)
