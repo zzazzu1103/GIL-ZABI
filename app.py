@@ -125,7 +125,7 @@ with st.sidebar:
 
     st.markdown(
         "<div style='color:#9E9070;font-size:0.72rem;text-align:center;'>"
-        "팀 GIL-ZABI · 2025</div>",
+        "팀 GIL-ZABI · 2026</div>",
         unsafe_allow_html=True,
     )
 
