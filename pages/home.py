@@ -54,27 +54,26 @@ def show():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── 이용 안내 ───────────────────────────────────────────────────
+    # ── 이용 안내 (클릭하면 해당 페이지로 이동) ──────────────────────
     st.markdown("### 📌 이용 안내")
+    from utils.auth import ROLE_PAGES
+    available = ROLE_PAGES[get_role()]
     col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown(
-            '<div class="card" style="text-align:center;">'
-            '<div style="font-size:1.8rem;">🗺️</div>'
-            '<div style="font-weight:700;margin:8px 0 4px;color:#3D3929;">학교 지도</div>'
-            '<div style="color:#9E9070;font-size:0.82rem;">1~5층 평면도에서 교실 위치를 확인하세요</div>'
-            '</div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown(
-            '<div class="card" style="text-align:center;">'
-            '<div style="font-size:1.8rem;">🔍</div>'
-            '<div style="font-weight:700;margin:8px 0 4px;color:#3D3929;">선생님 찾기</div>'
-            '<div style="color:#9E9070;font-size:0.82rem;">선생님 이름으로 검색하면 현재 위치를 알 수 있어요</div>'
-            '</div>', unsafe_allow_html=True)
-    with col3:
-        st.markdown(
-            '<div class="card" style="text-align:center;">'
-            '<div style="font-size:1.8rem;">👤</div>'
-            '<div style="font-weight:700;margin:8px 0 4px;color:#3D3929;">개인 설정</div>'
-            '<div style="color:#9E9070;font-size:0.82rem;">내 반과 탐구 과목을 설정해 맞춤 시간표를 확인하세요</div>'
-            '</div>', unsafe_allow_html=True)
+    cards = [
+        (col1, "🗺️", "학교 지도", "1~5층 평면도에서 교실 위치를 확인하세요", "🗺️ 학교 지도"),
+        (col2, "🔍", "선생님 찾기", "선생님 이름으로 검색하면 현재 위치를 알 수 있어요", "🔍 선생님 찾기"),
+        (col3, "👤", "개인 설정", "내 반과 탐구 과목을 설정해 맞춤 시간표를 확인하세요", "👤 개인 설정"),
+    ]
+    for col, icon, title, desc, target in cards:
+        with col:
+            with st.container(border=True):
+                st.markdown(
+                    f'<div style="text-align:center;">'
+                    f'<div style="font-size:1.8rem;">{icon}</div>'
+                    f'<div style="font-weight:700;margin:8px 0 4px;color:#3D3929;">{title}</div>'
+                    f'<div style="color:#9E9070;font-size:0.82rem;">{desc}</div>'
+                    f'</div>', unsafe_allow_html=True)
+                if target in available:
+                    if st.button("이동", key=f"home_nav_{title}", use_container_width=True):
+                        st.session_state["nav_target"] = target
+                        st.rerun()

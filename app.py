@@ -121,7 +121,11 @@ with st.sidebar:
 
     role  = get_role()
     pages = ROLE_PAGES[role]
-    page  = st.radio("메뉴", pages, label_visibility="collapsed")
+    if "nav_target" in st.session_state:
+        st.session_state["nav_page"] = st.session_state.pop("nav_target")
+    if st.session_state.get("nav_page") not in pages:
+        st.session_state.pop("nav_page", None)
+    page  = st.radio("메뉴", pages, label_visibility="collapsed", key="nav_page")
 
     st.markdown(
         "<div style='color:#9E9070;font-size:0.72rem;text-align:center;'>"
