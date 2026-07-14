@@ -255,7 +255,7 @@ def show():
                 col_l, col_r = st.columns([1, 3])
                 with col_l:
                     st.markdown(
-                        f'<div style="padding:8px 0;font-weight:700;color:#3D3929;">{tangu_code}</div>',
+                        f'<div class="elective-code" style="padding:8px 0;font-weight:700;color:#3D3929;">{tangu_code}</div>',
                         unsafe_allow_html=True
                     )
                 with col_r:

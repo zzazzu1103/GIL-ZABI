@@ -8,6 +8,24 @@ from utils.helpers import (
 )
 from utils.floorplan import render_map, find_room_floor, room_display_name, is_outdoor_room
 
+
+def _render_teacher_grid(teachers_df, names):
+    """선생님 버튼 목록 — 클릭하면 해당 선생님이 선택된다. (전체 목록·검색 결과 공용)"""
+    sub = teachers_df[teachers_df["교사명"].isin(names)].sort_values("교사명")
+    cols = st.columns(3)
+    for i, (_, t) in enumerate(sub.iterrows()):
+        with cols[i % 3]:
+            subj = teacher_subjects(t["교사명"]) or t["담당과목"]
+            if st.button(
+                f"**{t['교사명']}**  \n:small[:gray[{subj}]]",
+                key=f"tsbtn_{t['교사명']}",
+                help=str(t["교무실"]),
+                use_container_width=True,
+            ):
+                st.session_state["ts_selected"] = t["교사명"]
+                st.rerun()
+
+
 def show():
     st.markdown("""
     <div class="main-header">
@@ -39,6 +57,12 @@ def show():
 
     picked = st.session_state.get("ts_selected")
 
+    # 검색어가 바뀌면 이전 선택을 해제해서, 새 검색 결과 목록이 먼저 보이게 한다
+    if query != st.session_state.get("ts_last_query", ""):
+        st.session_state["ts_last_query"] = query
+        st.session_state.pop("ts_selected", None)
+        picked = None
+
     def _teacher_subject(name: str) -> str:
         row = teachers_df[teachers_df["교사명"] == name]
         fallback = str(row.iloc[0]["담당과목"]) if not row.empty else ""
@@ -56,7 +80,20 @@ def show():
             if not matches:
                 st.warning(f"'{query}'와 일치하는 선생님이 없습니다.")
                 return
-            selected_teacher = st.selectbox("검색 결과", matches)
+            if len(matches) == 1:
+                # 검색 결과가 한 명뿐이면 바로 상세 정보를 보여준다
+                selected_teacher = matches[0]
+            elif picked and picked in matches:
+                # 검색 결과 목록에서 클릭해서 선택한 경우
+                selected_teacher = picked
+                if st.button("← 검색 결과 목록으로 돌아가기", key="ts_back_search"):
+                    st.session_state.pop("ts_selected", None)
+                    st.rerun()
+            else:
+                # 전체 목록과 같은 버튼 목록으로 검색 결과 표시 → 클릭해서 선택
+                st.markdown(f"### 🔎 '{query}' 검색 결과 · {len(matches)}명")
+                _render_teacher_grid(teachers_df, matches)
+                return
         elif picked and picked in teacher_names:
             # 전체 목록에서 클릭해서 선택한 경우
             selected_teacher = picked
@@ -78,19 +115,7 @@ def show():
 
             # 전체 선생님 목록 — 클릭하면 바로 선택
             st.markdown("### 👩‍🏫 전체 선생님 목록")
-            sorted_teachers = teachers_df.sort_values("교사명")
-            cols = st.columns(3)
-            for i, (_, t) in enumerate(sorted_teachers.iterrows()):
-                with cols[i % 3]:
-                    subj = teacher_subjects(t['교사명']) or t['담당과목']
-                    if st.button(
-                        f"**{t['교사명']}**  \n:small[:gray[{subj}]]",
-                        key=f"tsbtn_{t['교사명']}",
-                        help=str(t["교무실"]),
-                        use_container_width=True,
-                    ):
-                        st.session_state["ts_selected"] = t["교사명"]
-                        st.rerun()
+            _render_teacher_grid(teachers_df, teacher_names)
             return
 
     # ── 선택된 선생님 상세 정보 ────────────────────────────────────────────────
@@ -108,7 +133,7 @@ def show():
     c1, c2 = st.columns(2)
     with c1:
         st.markdown(f"""
-        <div class="card">
+        <div class="card mob-full">
             <div style="color:#9E9070; font-size:0.8rem; margin-bottom:8px;">기본 정보</div>
             <div style="font-size:1rem; font-weight:600;">담당 과목</div>
             <div style="font-size:1.4rem; font-weight:900; color:#7D6B2E; margin:4px 0 12px;">{teacher_subjects(selected_teacher) or ti['담당과목']}</div>
@@ -151,7 +176,7 @@ def show():
             extra += f"<div style='color:#9E9070; font-size:0.8rem; margin-top:6px;'>{note}</div>"
 
         st.markdown(
-            f'<div class="card {"card-current" if is_teaching else "card-next"}">'
+            f'<div class="card mob-full {"card-current" if is_teaching else "card-next"}">'
             f'<div style="color:#9E9070; font-size:0.8rem; margin-bottom:8px;">지금 ({when_str})</div>'
             f'<span class="status-badge {badge_cls}">{status_icon} {status_label}</span>'
             f'<div style="font-size:1.4rem; font-weight:900; color:{status_color}; margin:10px 0 4px;">'
@@ -209,13 +234,13 @@ def show():
                 # 줄바꿈 없는 한 줄짜리 문자열로 조립한다.
                 st.markdown(
                     f'<div class="card {card_cls}">'
-                    f'<div style="display:flex;justify-content:space-between;align-items:center;">'
-                    f'<div>'
+                    f'<div class="card-split">'
+                    f'<div class="card-main">'
                     f'<div style="color:#9E9070;font-size:0.78rem;">{period}교시 · {time_str}</div>'
                     f'<div style="font-size:1.05rem;font-weight:700;margin-top:4px;">'
                     f'{row["과목"]} — {room_label}</div>'
                     f'</div>'
-                    f'<div style="text-align:right;">'
+                    f'<div class="card-side">'
                     f'<div style="font-size:1rem;font-weight:700;color:#7D6B2E;">📍 {row["교실위치"]}</div>'
                     f'<div style="color:#9E9070;font-size:0.78rem;">{floor_label}</div>'
                     f'{badge_html}'

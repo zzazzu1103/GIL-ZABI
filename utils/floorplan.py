@@ -384,15 +384,24 @@ def build_map_html(floor: int, highlight_map: dict | None = None) -> tuple[str, 
 body {{ margin:0; font-family:'Noto Sans KR',sans-serif; }}
 .room rect {{ transition: filter .15s; }}
 .room:hover rect {{ filter: brightness(0.93); }}
+.map-hint {{ display:none; }}
+/* 모바일: 지도를 축소하지 않고 원본 크기 그대로 좌우 스크롤로 본다 */
+@media (max-width: 640px) {{
+  .map-scroll {{ overflow-x:auto !important; -webkit-overflow-scrolling:touch; }}
+  .map-scroll svg {{ width:1000px !important; }}
+  .map-hint {{ display:block; margin-top:6px; font-size:0.72rem;
+               color:#9E9070; text-align:center; }}
+}}
 </style>
 <div style="width:100%; max-width:1000px; margin:0 auto;">
-  <div style="border:1px solid #E0D8CC; border-radius:12px; overflow:hidden;
+  <div class="map-scroll" style="border:1px solid #E0D8CC; border-radius:12px; overflow:hidden;
        background:#F7F4EE; box-shadow:0 2px 12px rgba(0,0,0,0.08);">
     <svg viewBox="{vx} {vy} {vw} {vh}" xmlns="http://www.w3.org/2000/svg"
          style="display:block; width:100%; height:auto;">
       {''.join(parts)}
     </svg>
   </div>
+  <div class="map-hint">↔️ 지도를 좌우로 밀어서 전체를 볼 수 있어요</div>
   <div id="room-info" style="display:none; margin-top:10px; padding:12px 18px;
        background:#fff; border:1px solid #E0D8CC; border-left:4px solid #7D6B2E;
        border-radius:10px;">

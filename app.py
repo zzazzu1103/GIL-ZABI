@@ -6,6 +6,7 @@ import streamlit as st
 from utils.auth import (
     handle_oauth_callback, render_auth_sidebar,
     get_role, get_user, has_permission,
+    get_oauth_url, logout,
     ROLE_PAGES, ROLE_LABELS, ROLE_COLORS
 )
 
@@ -13,7 +14,8 @@ st.set_page_config(
     page_title="길잡이 GIL-ZABI",
     page_icon="🗺️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    # auto: 데스크톱에서는 펼치고, 모바일에서는 접은 채로 시작
+    initial_sidebar_state="auto",
 )
 
 # ── OAuth 콜백 처리 (최상단) ──────────────────────────────────
@@ -103,6 +105,196 @@ h1, h2, h3, h4 { color: #3D3929 !important; }
     border: 1px solid #D4C9A8 !important; font-weight: 600 !important;
     border-radius: 8px !important;
 }
+
+/* ── 공용 카드 내부 레이아웃 (모바일 재배치용) ──────────────── */
+.card-row   { display: flex; align-items: center; gap: 16px; }
+.card-split { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.card-main  { flex: 1; min-width: 0; }
+.card-side  { text-align: right; flex-shrink: 0; }
+.period-chip {
+    min-width: 56px; text-align: center; background: #FAF7F2;
+    border-radius: 10px; padding: 10px 0; flex-shrink: 0;
+}
+.badge-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.loc-strong { font-size: 1.3rem; font-weight: 900; color: #7D6B2E; }
+
+.home-card { text-align: center; }
+.home-card-icon  { font-size: 1.8rem; }
+.home-card-title { font-weight: 700; margin: 8px 0 4px; color: #3D3929; }
+.home-card-desc  { color: #9E9070; font-size: 0.82rem; }
+
+/* ── 스트림릿 기본 UI 정리 ───────────────────────────────────
+   하단의 'Hosted with Streamlit' 배지·푸터·배포 버튼이 화면(특히
+   모바일 하단 탭바)을 가리므로 숨긴다. 배지는 배포 세대에 따라
+   클래스명이 달라 알려진 패턴을 모두 커버한다. */
+footer,
+.stAppDeployButton,
+[data-testid="stAppDeployButton"],
+[class*="viewerBadge"],
+[class*="_profileContainer"],
+[class*="_profilePreview"],
+[class*="_viewerBadge"] {
+    display: none !important;
+}
+
+/* 모바일 하단 내비게이션 — 데스크톱에서는 숨김 (미디어쿼리에서 표시) */
+div[class*="st-key-mobile_nav"] { display: none; }
+
+/* ══ 모바일 (≤ 640px) ════════════════════════════════════════ */
+@media (max-width: 640px) {
+    .block-container,
+    div[data-testid="stMainBlockContainer"] {
+        /* 아래 여백은 하단 탭바에 가리지 않도록 넉넉하게 */
+        padding: 4.25rem 0.9rem 5.5rem !important;
+    }
+    div[data-testid="stVerticalBlock"] { gap: 0.75rem; }
+
+    .main-header { padding: 14px 16px; margin-bottom: 14px; border-radius: 10px; }
+    .main-header h1 { font-size: 1.3rem; }
+    .main-header p  { font-size: 0.78rem; }
+    h2 { font-size: 1.25rem !important; }
+    h3 { font-size: 1.05rem !important; }
+    h4 { font-size: 0.95rem !important; }
+
+    /* 컬럼: 한 줄에 하나씩 길게 쌓이는 대신 2개씩 배치 */
+    div[data-testid="stHorizontalBlock"] {
+        flex-direction: row !important; flex-wrap: wrap !important; gap: 0.6rem !important;
+    }
+    div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"],
+    div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+        flex: 1 1 calc(50% - 0.6rem) !important;
+        min-width: calc(50% - 0.6rem) !important;
+        width: auto !important;
+    }
+    /* 검색창·넓은 카드가 든 컬럼은 한 줄 전체 사용 */
+    div[data-testid="stColumn"]:has(.stTextInput),
+    div[data-testid="stColumn"]:has(.mob-full),
+    div[data-testid="column"]:has(.stTextInput),
+    div[data-testid="column"]:has(.mob-full) {
+        flex-basis: 100% !important; min-width: 100% !important;
+    }
+    /* 홈 바로가기 카드는 한 줄에 하나씩 (가로형 카드로 전환) */
+    div[data-testid="stColumn"]:has([class*="st-key-home_card_"]),
+    div[data-testid="column"]:has([class*="st-key-home_card_"]) {
+        flex-basis: 100% !important; min-width: 100% !important;
+    }
+    /* 선택과목 코드 라벨은 내용 폭만 차지하고 셀렉트가 나머지를 채움 */
+    div[data-testid="stColumn"]:has(.elective-code),
+    div[data-testid="column"]:has(.elective-code) {
+        flex: 0 0 auto !important; min-width: 64px !important;
+    }
+    /* 선생님 목록 버튼: 컬럼별로 버튼이 쌓이는 구조라 2열로 줄이면
+       2명씩·1명씩 섞여 보이므로 모바일에서도 3열 그리드를 유지 */
+    div[data-testid="stColumn"]:has([class*="st-key-tsbtn_"]),
+    div[data-testid="column"]:has([class*="st-key-tsbtn_"]) {
+        flex: 1 1 calc(33.333% - 0.6rem) !important;
+        min-width: calc(33.333% - 0.6rem) !important;
+    }
+    div[data-testid="stColumn"]:has([class*="st-key-tsbtn_"]) .stButton > button {
+        padding: 0.45rem 0.3rem !important; font-size: 0.82rem !important;
+    }
+    .home-card { display: flex; align-items: center; gap: 12px; text-align: left; }
+    .home-card-icon  { font-size: 1.5rem; }
+    .home-card-title { margin: 0 0 2px; }
+
+    /* 메트릭: 모바일에서만 카드 형태 + 압축 (데스크톱은 기존 디자인 유지) */
+    [data-testid="stMetric"], [data-testid="metric-container"] {
+        background: #fff; border: 1px solid #E0D8CC; border-radius: 10px;
+        padding: 10px 12px; height: 100%; box-sizing: border-box;
+    }
+    [data-testid="stMetricValue"] { font-size: 1.3rem !important; }
+    [data-testid="stMetricLabel"] p { color: #9E9070 !important; font-size: 0.75rem !important; }
+    [data-testid="stMetricDelta"] { font-size: 0.72rem !important; }
+
+    /* 나란히 놓인 메트릭·카드 높이 맞춤 (모바일 전용) */
+    div[data-testid="stHorizontalBlock"] { align-items: stretch; }
+    div[data-testid="stColumn"] > div[data-testid="stVerticalBlock"],
+    div[data-testid="column"]  > div[data-testid="stVerticalBlock"] { height: 100%; }
+    div[data-testid="stVerticalBlock"] > div:has([data-testid="stMetric"]),
+    div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card),
+    div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlockBorderWrapper"]:has([class*="st-key-home_card_"]) {
+        flex: 1 1 auto;
+    }
+    div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card) [data-testid="stMarkdown"],
+    div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card) [data-testid="stMarkdown"] > div,
+    div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card) .card {
+        height: 100%; box-sizing: border-box;
+    }
+
+    .card { padding: 12px 14px; }
+    .card-row   { gap: 10px; flex-wrap: wrap; }
+    .card-split { flex-wrap: wrap; }
+    .period-chip { min-width: 46px; padding: 7px 0; }
+    .period-chip > div:first-child { font-size: 1.1rem !important; }
+    /* 오른쪽 정보(교실·층·상태 배지)는 카드 하단 한 줄로 이동 */
+    .card-side {
+        flex-basis: 100%; min-width: 0 !important; text-align: left !important;
+        display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px;
+        border-top: 1px dashed #E0D8CC; padding-top: 8px; margin-top: 2px;
+    }
+    .card-side br { display: none; }
+    .card-side > div { margin: 0 !important; }
+    .card-side .status-badge { margin-left: auto; }
+    .loc-strong { font-size: 1.05rem; }
+
+    .role-banner { padding: 6px 10px; font-size: 0.75rem; margin-bottom: 10px; }
+    .status-badge { font-size: 0.68rem; padding: 2px 8px; }
+    .stButton > button { padding: 0.45rem 1rem !important; font-size: 0.85rem !important; }
+
+    /* 주간·학년 피벗 표 압축 (가로 스크롤은 유지) */
+    .tt-pivot { -webkit-overflow-scrolling: touch; }
+    .tt-pivot table { border-spacing: 3px !important; }
+    .tt-pivot td { padding: 6px 4px !important; font-size: 0.74rem !important; border-radius: 8px !important; }
+    .tt-pivot th { padding: 6px 3px !important; font-size: 0.72rem !important; min-width: 38px !important; border-radius: 8px !important; }
+
+    /* ── 하단 탭바 내비게이션 (앱처럼 아이콘 + 작은 라벨) ──────
+       주의: st-key-mobile_nav 클래스는 stVerticalBlock 자체에 붙으므로
+       이 요소를 직접 가로 flex 컨테이너로 만든다. */
+    div[class*="st-key-mobile_nav"] {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: stretch !important;
+        gap: 2px !important;
+        height: auto !important;
+        position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999;
+        background: #FFFFFF;
+        border-top: 1px solid #E0D8CC;
+        box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+        padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px)) !important;
+        margin: 0 !important;
+    }
+    div[class*="st-key-mobile_nav"] > div {
+        flex: 1 1 0 !important; min-width: 0 !important; width: auto !important;
+    }
+    div[class*="st-key-mobile_nav"] .stButton,
+    div[class*="st-key-mobile_nav"] .stLinkButton { width: 100% !important; }
+    div[class*="st-key-mobile_nav"] .stButton > button,
+    div[class*="st-key-mobile_nav"] .stLinkButton > a {
+        display: block !important; width: 100% !important;
+        background: transparent !important;
+        color: #9E9070 !important;
+        border: none !important; box-shadow: none !important;
+        text-decoration: none !important; text-align: center !important;
+        font-size: 1.15rem !important; font-weight: 600 !important;
+        padding: 5px 0 !important; border-radius: 10px !important;
+        line-height: 1.35 !important; min-height: 0 !important;
+    }
+    div[class*="st-key-mobile_nav"] .stButton > button p,
+    div[class*="st-key-mobile_nav"] .stLinkButton > a p {
+        line-height: 1.3; white-space: nowrap; font-size: inherit;
+    }
+    div[class*="st-key-mobile_nav"] .stButton > button small,
+    div[class*="st-key-mobile_nav"] .stLinkButton > a small { font-size: 0.62rem; }
+    div[class*="st-key-mobile_nav"] .stButton > button:hover,
+    div[class*="st-key-mobile_nav"] .stButton > button:active,
+    div[class*="st-key-mobile_nav"] .stLinkButton > a:hover {
+        background: #F5F0E8 !important; color: #7D6B2E !important;
+    }
+    /* 현재 페이지 강조 */
+    div[class*="st-key-mobile_nav"] .stButton > button[kind="primary"] {
+        background: #F5F0E8 !important; color: #7D6B2E !important;
+    }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -164,3 +356,26 @@ elif page == "⚙️ 관리자":
     else:
         from utils.auth import show_permission_denied
         show_permission_denied("teacher")
+
+# ── 모바일 하단 탭바 (CSS로 모바일에서만 표시, 데스크톱에선 숨김) ──
+with st.container(key="mobile_nav"):
+    for p in pages:
+        icon, _, name = p.partition(" ")
+        if st.button(
+            f"{icon}  \n:small[{name}]",
+            key=f"mnav_{p}",
+            type="primary" if p == page else "secondary",
+            use_container_width=True,
+        ):
+            if p != page:
+                st.session_state["nav_target"] = p
+                st.rerun()
+
+    # 로그인/로그아웃 탭
+    if get_user():
+        if st.button("🚪  \n:small[로그아웃]", key="mnav_logout", use_container_width=True):
+            logout()
+    else:
+        oauth_url = get_oauth_url()
+        if oauth_url:
+            st.link_button("🔐  \n:small[로그인]", oauth_url, use_container_width=True)
