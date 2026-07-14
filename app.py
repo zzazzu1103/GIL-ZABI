@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import streamlit as st
 from utils.auth import (
     handle_oauth_callback, render_auth_sidebar,
-    get_role, get_user, has_permission,
+    get_role, get_user, get_current_user, has_permission,
     get_oauth_url, logout,
     ROLE_PAGES, ROLE_LABELS, ROLE_COLORS
 )
@@ -371,8 +371,9 @@ with st.container(key="mobile_nav"):
                 st.session_state["nav_target"] = p
                 st.rerun()
 
-    # 로그인/로그아웃 탭
-    if get_user():
+    # 로그인/로그아웃 탭 — get_user()는 비로그인이어도 더미 dict를 돌려줘
+    # 항상 참이므로, 실제 로그인 여부는 get_current_user()(None 가능)로 판정
+    if get_current_user():
         if st.button("🚪  \n:small[로그아웃]", key="mnav_logout", use_container_width=True):
             logout()
     else:
