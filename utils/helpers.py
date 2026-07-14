@@ -186,13 +186,23 @@ def elective_subject_name(code, teacher) -> str:
 
 @st.cache_data(ttl=60)
 def load_teacher_timetable():
-    """교사별 시간표 (교사명,요일,교시,과목,교실위치,층) — 선택과목 포함 전체 수업."""
-    df = pd.read_csv(os.path.join(DATA_DIR, "teacher_timetable.csv"))
-    df["교시"] = df["교시"].astype(int)
-    df["층"]   = df["층"].astype(int)
-    df["교실위치"] = df["교실위치"].astype(str)
-    from utils.room_overrides import apply_room_overrides
-    return apply_room_overrides(df)
+    """교사별 시간표 (교사명,요일,교시,과목,교실위치,층) — 선택과목 포함 전체 수업.
+
+    학급 시간표(load_timetable)에서 파생하므로 관리자 페이지에서 수정한
+    내용(Google Sheets 포함)이 교사 시간표에도 그대로 반영된다.
+    같은 (교사, 요일, 교시)에 여러 반 수업(합반 등)이 있으면 한 행만 남긴다.
+    """
+    try:
+        df = load_timetable()[["교사명", "요일", "교시", "과목", "교실위치", "층"]]
+        df = df.drop_duplicates(subset=["교사명", "요일", "교시"]).reset_index(drop=True)
+    except Exception:
+        df = pd.read_csv(os.path.join(DATA_DIR, "teacher_timetable.csv"))
+        df["교시"] = df["교시"].astype(int)
+        df["층"]   = df["층"].astype(int)
+        df["교실위치"] = df["교실위치"].astype(str)
+        from utils.room_overrides import apply_room_overrides
+        df = apply_room_overrides(df)
+    return df
 
 @st.cache_data(ttl=60)
 def load_rooms():
