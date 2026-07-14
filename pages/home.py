@@ -85,11 +85,12 @@ def show():
         with col:
             with st.container(border=True, key=f"home_card_{cid}"):
                 st.markdown(
-                    f'<div style="text-align:center;">'
-                    f'<div style="font-size:1.8rem;">{icon}</div>'
-                    f'<div style="font-weight:700;margin:8px 0 4px;color:#3D3929;">{title}</div>'
-                    f'<div style="color:#9E9070;font-size:0.82rem;">{desc}</div>'
-                    f'</div>', unsafe_allow_html=True)
+                    f'<div class="home-card">'
+                    f'<div class="home-card-icon">{icon}</div>'
+                    f'<div class="home-card-text">'
+                    f'<div class="home-card-title">{title}</div>'
+                    f'<div class="home-card-desc">{desc}</div>'
+                    f'</div></div>', unsafe_allow_html=True)
                 if target in available:
                     if st.button(title, key=f"home_nav_{cid}", use_container_width=True):
                         st.session_state["nav_target"] = target

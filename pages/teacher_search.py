@@ -108,7 +108,7 @@ def show():
     c1, c2 = st.columns(2)
     with c1:
         st.markdown(f"""
-        <div class="card">
+        <div class="card mob-full">
             <div style="color:#9E9070; font-size:0.8rem; margin-bottom:8px;">기본 정보</div>
             <div style="font-size:1rem; font-weight:600;">담당 과목</div>
             <div style="font-size:1.4rem; font-weight:900; color:#7D6B2E; margin:4px 0 12px;">{teacher_subjects(selected_teacher) or ti['담당과목']}</div>
@@ -151,7 +151,7 @@ def show():
             extra += f"<div style='color:#9E9070; font-size:0.8rem; margin-top:6px;'>{note}</div>"
 
         st.markdown(
-            f'<div class="card {"card-current" if is_teaching else "card-next"}">'
+            f'<div class="card mob-full {"card-current" if is_teaching else "card-next"}">'
             f'<div style="color:#9E9070; font-size:0.8rem; margin-bottom:8px;">지금 ({when_str})</div>'
             f'<span class="status-badge {badge_cls}">{status_icon} {status_label}</span>'
             f'<div style="font-size:1.4rem; font-weight:900; color:{status_color}; margin:10px 0 4px;">'
@@ -209,13 +209,13 @@ def show():
                 # 줄바꿈 없는 한 줄짜리 문자열로 조립한다.
                 st.markdown(
                     f'<div class="card {card_cls}">'
-                    f'<div style="display:flex;justify-content:space-between;align-items:center;">'
-                    f'<div>'
+                    f'<div class="card-split">'
+                    f'<div class="card-main">'
                     f'<div style="color:#9E9070;font-size:0.78rem;">{period}교시 · {time_str}</div>'
                     f'<div style="font-size:1.05rem;font-weight:700;margin-top:4px;">'
                     f'{row["과목"]} — {room_label}</div>'
                     f'</div>'
-                    f'<div style="text-align:right;">'
+                    f'<div class="card-side">'
                     f'<div style="font-size:1rem;font-weight:700;color:#7D6B2E;">📍 {row["교실위치"]}</div>'
                     f'<div style="color:#9E9070;font-size:0.78rem;">{floor_label}</div>'
                     f'{badge_html}'
