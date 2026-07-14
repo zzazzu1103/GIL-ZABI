@@ -128,11 +128,31 @@ h1, h2, h3, h4 { color: #3D3929 !important; }
 }
 [data-testid="stMetricLabel"] p { color: #9E9070 !important; }
 
+/* ── 나란히 놓인 메트릭·카드는 높이를 맞춘다 ─────────────────── */
+div[data-testid="stHorizontalBlock"] { align-items: stretch; }
+div[data-testid="stColumn"] > div[data-testid="stVerticalBlock"],
+div[data-testid="column"]  > div[data-testid="stVerticalBlock"] { height: 100%; }
+div[data-testid="stVerticalBlock"] > div:has([data-testid="stMetric"]),
+div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card),
+div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlockBorderWrapper"]:has([class*="st-key-home_card_"]) {
+    flex: 1 1 auto;
+}
+[data-testid="stMetric"] { height: 100%; box-sizing: border-box; }
+div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card) [data-testid="stMarkdown"],
+div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card) [data-testid="stMarkdown"] > div,
+div[data-testid="stVerticalBlock"] > div:has(> [data-testid="stMarkdown"] .card) .card {
+    height: 100%; box-sizing: border-box;
+}
+
+/* 모바일 하단 내비게이션 — 데스크톱에서는 숨김 (미디어쿼리에서 표시) */
+div[class*="st-key-mobile_nav"] { display: none; }
+
 /* ══ 모바일 (≤ 640px) ════════════════════════════════════════ */
 @media (max-width: 640px) {
     .block-container,
     div[data-testid="stMainBlockContainer"] {
-        padding: 4.25rem 0.9rem 3rem !important;
+        /* 아래 여백은 하단 탭바에 가리지 않도록 넉넉하게 */
+        padding: 4.25rem 0.9rem 5.5rem !important;
     }
     div[data-testid="stVerticalBlock"] { gap: 0.75rem; }
 
@@ -204,6 +224,44 @@ h1, h2, h3, h4 { color: #3D3929 !important; }
     .tt-pivot table { border-spacing: 3px !important; }
     .tt-pivot td { padding: 6px 4px !important; font-size: 0.74rem !important; border-radius: 8px !important; }
     .tt-pivot th { padding: 6px 3px !important; font-size: 0.72rem !important; min-width: 38px !important; border-radius: 8px !important; }
+
+    /* ── 하단 탭바 내비게이션 (앱처럼 아이콘 + 작은 라벨) ────── */
+    div[class*="st-key-mobile_nav"] {
+        display: block !important;
+        position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999;
+        background: #FFFFFF;
+        border-top: 1px solid #E0D8CC;
+        box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+        padding: 4px 8px calc(4px + env(safe-area-inset-bottom, 0px));
+        margin: 0 !important;
+    }
+    div[class*="st-key-mobile_nav"] div[data-testid="stVerticalBlock"] {
+        flex-direction: row !important; gap: 4px !important; height: auto !important;
+    }
+    div[class*="st-key-mobile_nav"] div[data-testid="stVerticalBlock"] > div {
+        flex: 1 1 0 !important; min-width: 0 !important;
+    }
+    div[class*="st-key-mobile_nav"] .stButton > button {
+        width: 100% !important;
+        background: transparent !important;
+        color: #9E9070 !important;
+        border: none !important; box-shadow: none !important;
+        font-size: 1.15rem !important; font-weight: 600 !important;
+        padding: 6px 2px !important; border-radius: 10px !important;
+        line-height: 1.35 !important;
+    }
+    div[class*="st-key-mobile_nav"] .stButton > button p {
+        line-height: 1.3; white-space: nowrap;
+    }
+    div[class*="st-key-mobile_nav"] .stButton > button small { font-size: 0.62rem; }
+    div[class*="st-key-mobile_nav"] .stButton > button:hover,
+    div[class*="st-key-mobile_nav"] .stButton > button:active {
+        background: #F5F0E8 !important; color: #7D6B2E !important;
+    }
+    /* 현재 페이지 강조 */
+    div[class*="st-key-mobile_nav"] .stButton > button[kind="primary"] {
+        background: #F5F0E8 !important; color: #7D6B2E !important;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -266,3 +324,17 @@ elif page == "⚙️ 관리자":
     else:
         from utils.auth import show_permission_denied
         show_permission_denied("teacher")
+
+# ── 모바일 하단 탭바 (CSS로 모바일에서만 표시, 데스크톱에선 숨김) ──
+with st.container(key="mobile_nav"):
+    for p in pages:
+        icon, _, name = p.partition(" ")
+        if st.button(
+            f"{icon}  \n:small[{name}]",
+            key=f"mnav_{p}",
+            type="primary" if p == page else "secondary",
+            use_container_width=True,
+        ):
+            if p != page:
+                st.session_state["nav_target"] = p
+                st.rerun()
