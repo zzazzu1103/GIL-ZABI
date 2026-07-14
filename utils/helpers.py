@@ -139,7 +139,7 @@ def _sheets_configured() -> bool:
 
 
 @st.cache_data(ttl=60)
-def load_timetable():
+def load_timetable_sheets():
     if _sheets_configured():
         try:
             from utils.sheets_sync import load_timetable_sheets
