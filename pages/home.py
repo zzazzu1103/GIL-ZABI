@@ -3,7 +3,7 @@ from datetime import datetime, timezone, timedelta
 from utils.auth import get_current_user, get_role
 from utils.helpers import (
     get_current_period, get_next_period, get_current_day,
-    PERIODS, load_timetable_sheets, STATUS_LABELS
+    PERIODS, STATUS_LABELS
 )
 
 KST = timezone(timedelta(hours=9))
