@@ -123,6 +123,20 @@ h1, h2, h3, h4 { color: #3D3929 !important; }
 .home-card-title { font-weight: 700; margin: 8px 0 4px; color: #3D3929; }
 .home-card-desc  { color: #9E9070; font-size: 0.82rem; }
 
+/* ── 스트림릿 기본 UI 정리 ───────────────────────────────────
+   하단의 'Hosted with Streamlit' 배지·푸터·배포 버튼이 화면(특히
+   모바일 하단 탭바)을 가리므로 숨긴다. 배지는 배포 세대에 따라
+   클래스명이 달라 알려진 패턴을 모두 커버한다. */
+footer,
+.stAppDeployButton,
+[data-testid="stAppDeployButton"],
+[class*="viewerBadge"],
+[class*="_profileContainer"],
+[class*="_profilePreview"],
+[class*="_viewerBadge"] {
+    display: none !important;
+}
+
 /* 모바일 하단 내비게이션 — 데스크톱에서는 숨김 (미디어쿼리에서 표시) */
 div[class*="st-key-mobile_nav"] { display: none; }
 
