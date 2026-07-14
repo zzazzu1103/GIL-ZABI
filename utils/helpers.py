@@ -72,6 +72,7 @@ def subject_color(subject) -> str | None:
     return prefs.get("color_map", {}).get(str(subject)) or auto_subject_color(subject)
 
 
+@st.cache_data(ttl=60, show_spinner=False)
 def teacher_subjects(teacher) -> str:
     """선생님이 실제로 가르치는 과목 전체 (예: '화작 · 학특 · 논술').
 
@@ -154,11 +155,11 @@ def load_timetable():
     from utils.room_overrides import apply_room_overrides
     return apply_room_overrides(df)
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=300)
 def load_teachers():
     return pd.read_csv(os.path.join(DATA_DIR, "teachers.csv"))
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=300)
 def load_elective_subjects() -> dict:
     """(과목코드, 교사명) → 실제 과목명 (예: (탐구D, 이지원) → 물리Ⅱ).
 
@@ -204,7 +205,7 @@ def load_teacher_timetable():
         df = apply_room_overrides(df)
     return df
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=300)
 def load_rooms():
     df = pd.read_csv(os.path.join(DATA_DIR, "rooms.csv"))
     for col in ["층", "x", "y", "width", "height"]:

@@ -35,6 +35,16 @@ def sheet_id() -> str | None:
 
 
 def get_client(readonly=True):
+    """캐시된 gspread 클라이언트 반환. 실패(None)는 캐시하지 않아
+    일시적인 오류 후 다음 호출에서 다시 시도한다."""
+    client = _build_client(readonly)
+    if client is None:
+        _build_client.clear(readonly)
+    return client
+
+
+@st.cache_resource(show_spinner=False)
+def _build_client(readonly=True):
     if "gcp_service_account" not in st.secrets:
         return _fail("secrets.toml 에 [gcp_service_account] 섹션이 없어요.")
     try:

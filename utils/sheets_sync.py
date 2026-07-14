@@ -31,8 +31,13 @@ import pandas as pd
 import streamlit as st
 
 # ── 구글 시트 연결 ─────────────────────────────────────────────
+@st.cache_resource(show_spinner=False)
 def _get_gspread_client():
-    """서비스 계정으로 gspread 클라이언트 반환."""
+    """서비스 계정으로 gspread 클라이언트 반환.
+
+    authorize() 가 매번 OAuth 토큰을 새로 발급받아 느리므로
+    프로세스당 한 번만 만들어 재사용한다(토큰 갱신은 gspread가 자동 처리).
+    """
     try:
         import gspread
         from google.oauth2.service_account import Credentials
