@@ -183,6 +183,16 @@ div[class*="st-key-mobile_nav"] { display: none; }
     div[data-testid="column"]:has(.elective-code) {
         flex: 0 0 auto !important; min-width: 64px !important;
     }
+    /* 선생님 목록 버튼: 컬럼별로 버튼이 쌓이는 구조라 2열로 줄이면
+       2명씩·1명씩 섞여 보이므로 모바일에서도 3열 그리드를 유지 */
+    div[data-testid="stColumn"]:has([class*="st-key-tsbtn_"]),
+    div[data-testid="column"]:has([class*="st-key-tsbtn_"]) {
+        flex: 1 1 calc(33.333% - 0.6rem) !important;
+        min-width: calc(33.333% - 0.6rem) !important;
+    }
+    div[data-testid="stColumn"]:has([class*="st-key-tsbtn_"]) .stButton > button {
+        padding: 0.45rem 0.3rem !important; font-size: 0.82rem !important;
+    }
     .home-card { display: flex; align-items: center; gap: 12px; text-align: left; }
     .home-card-icon  { font-size: 1.5rem; }
     .home-card-title { margin: 0 0 2px; }
