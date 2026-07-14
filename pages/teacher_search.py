@@ -32,19 +32,27 @@ def show():
     # ── 검색 UI ──────────────────────────────────────────────────────────────
     col1, col2 = st.columns([3, 1])
     with col1:
-        query = st.text_input("🔍 선생님 이름 검색", placeholder="예: 김영희, 이철수...")
+        query = st.text_input("🔍 선생님 이름 또는 과목 검색", placeholder="예: 김영희, 수학...")
     with col2:
         st.markdown("<br>", unsafe_allow_html=True)
         use_dropdown = st.checkbox("목록에서 선택", value=False)
 
     picked = st.session_state.get("ts_selected")
 
+    def _teacher_subject(name: str) -> str:
+        row = teachers_df[teachers_df["교사명"] == name]
+        fallback = str(row.iloc[0]["담당과목"]) if not row.empty else ""
+        return teacher_subjects(name) or fallback
+
     if use_dropdown:
         selected_teacher = st.selectbox("선생님 선택", teacher_names)
     else:
-        # 검색어 기반 필터
+        # 검색어 기반 필터 — 이름 또는 담당 과목에 검색어가 포함되면 매칭
         if query:
-            matches = [n for n in teacher_names if query in n]
+            matches = [
+                n for n in teacher_names
+                if query in n or query in _teacher_subject(n)
+            ]
             if not matches:
                 st.warning(f"'{query}'와 일치하는 선생님이 없습니다.")
                 return
