@@ -2,6 +2,16 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# ── Hugging Face Spaces 지원 ──────────────────────────────────
+# HF는 시크릿을 환경변수로만 주입하므로, SECRETS_TOML 환경변수에 담긴
+# secrets.toml 전체 내용을 앱 시작 시 파일로 만들어 st.secrets가 읽게 한다.
+_secrets_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             ".streamlit", "secrets.toml")
+if not os.path.exists(_secrets_path) and os.environ.get("SECRETS_TOML"):
+    os.makedirs(os.path.dirname(_secrets_path), exist_ok=True)
+    with open(_secrets_path, "w", encoding="utf-8") as _f:
+        _f.write(os.environ["SECRETS_TOML"])
+
 import streamlit as st
 from utils.auth import (
     handle_oauth_callback, render_auth_sidebar,
